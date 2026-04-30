@@ -6,6 +6,7 @@ import { useAuth, UserRole } from "../context/AuthContext";
 import { Navigate } from "react-router";
 import { Tooltip } from "../components/ui/Tooltip";
 import { logger } from "../../utils/logger";
+import { usersAPI } from "../services/usersAPI";
 
 interface UsuarioSistema {
   id: string;
@@ -37,43 +38,39 @@ function AdminContent() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const token = localStorage.getItem('creditline_token');
-        if (!token) {
-          logger.warn("Administracion", "No authentication token found");
-          return;
-        }
-
         logger.info("Administracion", "Loading users and system config");
 
         // Fetch users
-        const usersRes = await fetch('http://localhost:8000/api/users/list/', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (usersRes.ok) {
-          const data = await usersRes.json();
-          logger.info("Administracion", "Users loaded successfully", { count: data.length });
-          setUsuarios(data.map((u: any) => ({
-            id: u.auth_id,
-            nombre: u.nombre,
-            email: u.email,
-            rol: u.rol,
-            ultimoAcceso: u.ultimo_acceso || "—"
-          })));
+        const usersRes = await usersAPI.listUsers();
+        if (usersRes.data) {
+          logger.info("Administracion", "Users loaded successfully", {
+            count: usersRes.data.length,
+          });
+          setUsuarios(
+            usersRes.data.map((u) => ({
+              id: u.auth_id,
+              nombre: u.nombre,
+              email: u.email,
+              rol: u.rol,
+              ultimoAcceso: u.ultimo_acceso || "—",
+            }))
+          );
         } else {
-          logger.warn("Administracion", "Failed to load users", { status: usersRes.status });
+          logger.warn("Administracion", "Failed to load users", {
+            error: usersRes.error,
+          });
         }
 
         // Fetch system config
-        const configRes = await fetch('http://localhost:8000/api/users/system-config/', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (configRes.ok) {
-          const config = await configRes.json();
+        const configRes = await usersAPI.getSystemConfig();
+        if (configRes.data) {
           logger.info("Administracion", "System config loaded successfully");
-          setTasaInteres(config.tasa_interes);
-          setImpuestoRetraso(config.impuesto_retraso);
+          setTasaInteres(configRes.data.tasa_interes);
+          setImpuestoRetraso(configRes.data.impuesto_retraso);
         } else {
-          logger.warn("Administracion", "Failed to load system config", { status: configRes.status });
+          logger.warn("Administracion", "Failed to load system config", {
+            error: configRes.error,
+          });
         }
       } catch (error) {
         logger.error("Administracion", "Error loading data", error as Error);
@@ -110,84 +107,86 @@ function AdminContent() {
 
   const handleSave = async () => {
     if (!validate()) {
-      toast.error("Formulario incompleto", { description: "Revisa los campos requeridos." });
+      toast.error("Formulario incompleto", {
+        description: "Revisa los campos requeridos.",
+      });
       return;
     }
 
     setLoading(true);
-    const token = localStorage.getItem('creditline_token');
 
     try {
       if (editingId) {
         // Update existing user
         logger.info("Administracion", "Updating user", { userId: editingId });
 
-        const res = await fetch(`http://localhost:8000/api/users/profile/update/`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ nombre: form.nombre })
-        });
+        const res = await usersAPI.updateUser(form.nombre);
 
-        if (res.ok) {
-          setUsuarios(prev =>
-            prev.map(u => (u.id === editingId ? { ...u, nombre: form.nombre } : u))
+        if (res.data) {
+          setUsuarios((prev) =>
+            prev.map((u) => (u.id === editingId ? { ...u, nombre: form.nombre } : u))
           );
-          logger.info("Administracion", "User updated successfully", { nombre: form.nombre });
-          toast.success("Usuario actualizado", { description: `"${form.nombre}" fue actualizado.` });
+          logger.info("Administracion", "User updated successfully", {
+            nombre: form.nombre,
+          });
+          toast.success("Usuario actualizado", {
+            description: `"${form.nombre}" fue actualizado.`,
+          });
         } else {
-          const error = await res.json();
-          logger.warn("Administracion", "Failed to update user", { status: res.status });
-          toast.error("Error al actualizar", { description: error.error || "Intenta de nuevo." });
+          logger.warn("Administracion", "Failed to update user", {
+            error: res.error,
+          });
+          toast.error("Error al actualizar", {
+            description: res.error || "Intenta de nuevo.",
+          });
         }
       } else {
         // Create new user
         logger.info("Administracion", "Creating new user", { email: form.email });
 
-        const res = await fetch('http://localhost:8000/api/users/create/', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            nombre: form.nombre,
-            email: form.email,
-            rol: form.rol,
-            password: form.password
-          })
+        const res = await usersAPI.createUser({
+          nombre: form.nombre,
+          email: form.email,
+          rol: form.rol,
+          password: form.password,
         });
 
-        if (res.ok) {
-          const data = await res.json();
-          const newUser = data.user;
-          setUsuarios(prev => [...prev, {
-            id: newUser.auth_id,
-            nombre: newUser.nombre,
-            email: newUser.email,
-            rol: newUser.rol,
-            ultimoAcceso: "—"
-          }]);
-          logger.info("Administracion", "User created successfully", { email: form.email, rol: form.rol });
-          toast.success("Usuario creado", { description: `"${form.nombre}" fue agregado al sistema.` });
+        if (res.data) {
+          const newUser = res.data.user;
+          setUsuarios((prev) => [
+            ...prev,
+            {
+              id: newUser.auth_id,
+              nombre: newUser.nombre,
+              email: newUser.email,
+              rol: newUser.rol,
+              ultimoAcceso: "—",
+            },
+          ]);
+          logger.info("Administracion", "User created successfully", {
+            email: form.email,
+            rol: form.rol,
+          });
+          toast.success("Usuario creado", {
+            description: `"${form.nombre}" fue agregado al sistema.`,
+          });
         } else {
-          const error = await res.json();
-          logger.warn("Administracion", "Failed to create user", { status: res.status, email: form.email });
-          if (typeof error === 'object') {
-            const errorMsg = Object.values(error)[0];
-            toast.error("Error al crear usuario", { description: String(errorMsg) });
-          } else {
-            toast.error("Error al crear usuario", { description: "Intenta de nuevo." });
-          }
+          logger.warn("Administracion", "Failed to create user", {
+            error: res.error,
+            email: form.email,
+          });
+          toast.error("Error al crear usuario", {
+            description: res.error || "Intenta de nuevo.",
+          });
         }
       }
       setShowForm(false);
       setEditingId(null);
     } catch (error) {
       logger.error("Administracion", "Error saving user", error as Error);
-      toast.error("Error de conexión", { description: "No se pudo conectar al servidor." });
+      toast.error("Error de conexión", {
+        description: "No se pudo conectar al servidor.",
+      });
     } finally {
       setLoading(false);
     }
@@ -195,28 +194,37 @@ function AdminContent() {
 
   const handleDelete = async () => {
     const u = usuarios.find((x) => x.id === deleteId);
-    const token = localStorage.getItem('creditline_token');
 
     try {
-      logger.info("Administracion", "Deleting user", { userId: deleteId, nombre: u?.nombre });
-
-      const res = await fetch(`http://localhost:8000/api/users/${deleteId}/delete/`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+      logger.info("Administracion", "Deleting user", {
+        userId: deleteId,
+        nombre: u?.nombre,
       });
 
-      if (res.ok || res.status === 404) {
+      const res = await usersAPI.deleteUser(deleteId!);
+
+      if (res.data || res.error?.includes("404")) {
         setUsuarios((prev) => prev.filter((x) => x.id !== deleteId));
         setDeleteId(null);
-        logger.info("Administracion", "User deleted successfully", { nombre: u?.nombre });
-        toast.success("Usuario eliminado", { description: `"${u?.nombre}" fue eliminado.` });
+        logger.info("Administracion", "User deleted successfully", {
+          nombre: u?.nombre,
+        });
+        toast.success("Usuario eliminado", {
+          description: `"${u?.nombre}" fue eliminado.`,
+        });
       } else {
-        logger.warn("Administracion", "Failed to delete user", { status: res.status });
-        toast.error("Error al eliminar", { description: "No se pudo eliminar el usuario." });
+        logger.warn("Administracion", "Failed to delete user", {
+          error: res.error,
+        });
+        toast.error("Error al eliminar", {
+          description: "No se pudo eliminar el usuario.",
+        });
       }
     } catch (error) {
       logger.error("Administracion", "Error deleting user", error as Error);
-      toast.error("Error de conexión", { description: "No se pudo conectar al servidor." });
+      toast.error("Error de conexión", {
+        description: "No se pudo conectar al servidor.",
+      });
     }
   };
 
@@ -345,29 +353,26 @@ function AdminContent() {
             </div>
             <button
               onClick={async () => {
-                const token = localStorage.getItem('creditline_token');
                 try {
-                  const res = await fetch('http://localhost:8000/api/users/system-config/update/', {
-                    method: 'PUT',
-                    headers: {
-                      'Authorization': `Bearer ${token}`,
-                      'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                      tasa_interes: tasaInteres,
-                      impuesto_retraso: impuestoRetraso
-                    })
+                  const res = await usersAPI.updateSystemConfig({
+                    tasa_interes: tasaInteres,
+                    impuesto_retraso: impuestoRetraso,
                   });
 
-                  if (res.ok) {
-                    toast.success("Configuración guardada", { description: "Los cambios fueron aplicados." });
+                  if (res.data) {
+                    toast.success("Configuración guardada", {
+                      description: "Los cambios fueron aplicados.",
+                    });
                   } else {
-                    const error = await res.json();
-                    toast.error("Error al guardar", { description: error.error || "Intenta de nuevo." });
+                    toast.error("Error al guardar", {
+                      description: res.error || "Intenta de nuevo.",
+                    });
                   }
                 } catch (error) {
-                  console.error('Error:', error);
-                  toast.error("Error de conexión", { description: "No se pudo conectar al servidor." });
+                  logger.error("Administracion", "Error saving config", error as Error);
+                  toast.error("Error de conexión", {
+                    description: "No se pudo conectar al servidor.",
+                  });
                 }
               }}
               className="w-full bg-[#2563EB] text-white py-2.5 rounded-xl hover:bg-[#1E3A8A] transition-colors text-sm flex items-center justify-center gap-2"
