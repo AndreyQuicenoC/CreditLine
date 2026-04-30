@@ -25,23 +25,6 @@ def generate_jwt_token(user_id: str, email: str) -> str:
     return token
 
 
-def get_user_id_from_token(request):
-    """Extract user ID from JWT token in Authorization header."""
-    auth_header = request.META.get('Authorization', '')
-    if not auth_header.startswith('Bearer '):
-        return None
-
-    token = auth_header.split(' ')[1]
-
-    try:
-        # Decode JWT without verification (in dev mode)
-        decoded = jwt.decode(token, options={"verify_signature": False})
-        return decoded.get('sub')
-    except Exception as e:
-        logger.error(f"Error decoding token: {str(e)}")
-        return None
-
-
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login(request):
@@ -149,11 +132,11 @@ def get_profile(request):
     Authentication is handled by JWT verification.
     """
     try:
-        user_id = get_user_id_from_token(request)
+        user_id = request.user.id
 
         if not user_id:
             return Response(
-                {'error': 'Invalid token format'},
+                {'error': 'Invalid authentication'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
@@ -188,11 +171,11 @@ def update_profile(request):
     Only certain fields can be updated: nombre.
     """
     try:
-        user_id = get_user_id_from_token(request)
+        user_id = request.user.id
 
         if not user_id:
             return Response(
-                {'error': 'Invalid token format'},
+                {'error': 'Invalid authentication'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
@@ -230,14 +213,15 @@ def list_users(request):
     Returns a list of all user profiles.
     """
     try:
-        user_id = get_user_id_from_token(request)
-
-        if not user_id:
-            logger.warning("list_users: invalid token format")
+        # request.user is already authenticated by JWTAuthentication
+        if not request.user or not hasattr(request.user, 'id'):
+            logger.warning("list_users: invalid user object")
             return Response(
-                {'error': 'Invalid token format'},
+                {'error': 'Invalid authentication'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
+
+        user_id = request.user.id
 
         # Check if user is admin
         profile = UserProfile.objects.get(auth_id=user_id)
@@ -277,11 +261,11 @@ def create_user(request):
     Creates user in both user_profiles table and mock_auth_users for password storage.
     """
     try:
-        user_id = get_user_id_from_token(request)
+        user_id = request.user.id
 
         if not user_id:
             return Response(
-                {'error': 'Invalid token format'},
+                {'error': 'Invalid authentication'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
@@ -391,11 +375,11 @@ def get_system_config(request):
     Returns current values for tasa_interes and impuesto_retraso.
     """
     try:
-        user_id = get_user_id_from_token(request)
+        user_id = request.user.id
 
         if not user_id:
             return Response(
-                {'error': 'Invalid token format'},
+                {'error': 'Invalid authentication'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
@@ -453,11 +437,11 @@ def delete_user(request, user_id):
     Removes user from user_profiles table.
     """
     try:
-        auth_user_id = get_user_id_from_token(request)
+        auth_user_id = request.user.id
 
         if not auth_user_id:
             return Response(
-                {'error': 'Invalid token format'},
+                {'error': 'Invalid authentication'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
@@ -508,11 +492,11 @@ def update_system_config(request):
     Stores updated values in system_config table.
     """
     try:
-        user_id = get_user_id_from_token(request)
+        user_id = request.user.id
 
         if not user_id:
             return Response(
-                {'error': 'Invalid token format'},
+                {'error': 'Invalid authentication'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
