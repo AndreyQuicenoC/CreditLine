@@ -42,25 +42,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // INIT AUTH FROM LOCALSTORAGE
   useEffect(() => {
+    console.log("[AuthContext] Initializing from localStorage");
     const token = localStorage.getItem("creditline_token");
     const storedUser = localStorage.getItem("creditline_user");
+
+    console.log("[AuthContext] Has token:", !!token);
+    console.log("[AuthContext] Has user:", !!storedUser);
 
     if (token && storedUser) {
       try {
         const parsed = JSON.parse(storedUser);
+        console.log("[AuthContext] User restored:", parsed.email, "role:", parsed.rol);
         setUser(parsed);
-      } catch {
+      } catch (e) {
+        console.log("[AuthContext] Error parsing user, clearing storage");
         localStorage.removeItem("creditline_token");
         localStorage.removeItem("creditline_user");
       }
+    } else {
+      console.log("[AuthContext] No auth data found, user is null");
     }
 
     setLoading(false);
+
+    // Listen for logout events from API
+    const handleLogout = () => {
+      console.log("[AuthContext] Logout event received");
+      setUser(null);
+    };
+
+    window.addEventListener("auth:logout", handleLogout);
+    return () => window.removeEventListener("auth:logout", handleLogout);
   }, []);
 
   // LOGIN
   const login = async (email: string, password: string) => {
     try {
+      console.log("[AuthContext] Login attempt for:", email);
       setLoading(true);
 
       const response = await fetch(`${API_URL}/api/users/login/`, {
@@ -73,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({}));
+        console.log("[AuthContext] Login failed:", error.error);
         return {
           success: false,
           error: error.error || "Login failed",
@@ -82,11 +101,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await response.json();
 
       if (!data.token || !data.user) {
+        console.log("[AuthContext] Invalid server response");
         return {
           success: false,
           error: "Invalid server response",
         };
       }
+
+      console.log("[AuthContext] Login successful for:", data.user.email, "role:", data.user.rol);
 
       // STORE AUTH
       localStorage.setItem("creditline_token", data.token);
@@ -96,6 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return { success: true };
     } catch (error) {
+      console.error("[AuthContext] Login error:", error);
       return {
         success: false,
         error: error instanceof Error ? error.message : "Login error",

@@ -1,14 +1,5 @@
 import apiClient from "./api";
 
-// Token store helper
-const setTokenWithExpiration = (token: string) => {
-  const tokenData = {
-    token,
-    timestamp: Date.now(),
-  };
-  localStorage.setItem("creditline_token", JSON.stringify(tokenData));
-};
-
 export const authAPI = {
   login: async (email: string, password: string) => {
     const response = await apiClient.post<{
@@ -20,8 +11,10 @@ export const authAPI = {
     });
 
     if (response.data?.token) {
-      setTokenWithExpiration(response.data.token);
+      // Store token as plain string (JWT already has exp in payload)
+      localStorage.setItem("creditline_token", response.data.token);
       localStorage.setItem("creditline_user", JSON.stringify(response.data.user));
+      console.log("[Auth] Login successful, token stored");
     }
 
     return response;
@@ -30,6 +23,7 @@ export const authAPI = {
   logout: () => {
     localStorage.removeItem("creditline_token");
     localStorage.removeItem("creditline_user");
+    console.log("[Auth] Logout completed");
     window.location.href = "/login";
   },
 };

@@ -38,11 +38,13 @@ function AdminContent() {
   useEffect(() => {
     const loadData = async () => {
       try {
+        console.log("[Administracion] Loading users and system config");
         logger.info("Administracion", "Loading users and system config");
 
         // Fetch users
         const usersRes = await usersAPI.listUsers();
         if (usersRes.data) {
+          console.log("[Administracion] Users loaded:", usersRes.data.length);
           logger.info("Administracion", "Users loaded successfully", {
             count: usersRes.data.length,
           });
@@ -56,6 +58,7 @@ function AdminContent() {
             }))
           );
         } else {
+          console.error("[Administracion] Failed to load users:", usersRes.error);
           logger.warn("Administracion", "Failed to load users", {
             error: usersRes.error,
           });
@@ -64,15 +67,18 @@ function AdminContent() {
         // Fetch system config
         const configRes = await usersAPI.getSystemConfig();
         if (configRes.data) {
+          console.log("[Administracion] System config loaded:", configRes.data);
           logger.info("Administracion", "System config loaded successfully");
           setTasaInteres(configRes.data.tasa_interes);
           setImpuestoRetraso(configRes.data.impuesto_retraso);
         } else {
+          console.error("[Administracion] Failed to load system config:", configRes.error);
           logger.warn("Administracion", "Failed to load system config", {
             error: configRes.error,
           });
         }
       } catch (error) {
+        console.error("[Administracion] Error loading data:", error);
         logger.error("Administracion", "Error loading data", error as Error);
       }
     };

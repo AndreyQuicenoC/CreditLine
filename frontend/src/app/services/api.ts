@@ -1,14 +1,8 @@
 const API_URL = (import.meta.env.VITE_API_URL as string) || "http://localhost:8000";
 const API_TIMEOUT = Number(import.meta.env.VITE_API_TIMEOUT as string) || 10000;
-const TOKEN_EXPIRATION_MS = 3600000; // 1 hour in milliseconds
 
 if (!API_URL) {
   throw new Error("Missing VITE_API_URL in environment");
-}
-
-interface TokenData {
-  token: string;
-  timestamp: number;
 }
 
 const getToken = () => {
@@ -16,37 +10,20 @@ const getToken = () => {
   if (!tokenData) return null;
 
   try {
-    // If token is stored as a plain string (legacy), return it
+    // If token is stored as a plain string (legacy)
     if (!tokenData.includes("{")) {
       return tokenData;
     }
 
-    // If stored as JSON with expiration info
-    const { token, timestamp } = JSON.parse(tokenData);
-    const now = Date.now();
-    const elapsed = now - timestamp;
-
-    // Check if token has expired
-    if (elapsed > TOKEN_EXPIRATION_MS) {
-      localStorage.removeItem("creditline_token");
-      localStorage.removeItem("creditline_user");
-      window.location.href = "/login";
-      return null;
+    // If stored as JSON, extract the token
+    const parsed = JSON.parse(tokenData);
+    if (typeof parsed === "object" && parsed.token) {
+      return parsed.token;
     }
-
-    return token;
+    return tokenData;
   } catch {
-    // If parsing fails, assume it's a plain token string
     return tokenData;
   }
-};
-
-const setToken = (token: string) => {
-  const tokenData: TokenData = {
-    token,
-    timestamp: Date.now(),
-  };
-  localStorage.setItem("creditline_token", JSON.stringify(tokenData));
 };
 
 class APIClient {
@@ -89,11 +66,13 @@ class APIClient {
 
       clearTimeout(timeoutId);
 
-      // Auto logout si token inválido
+      // 401 means token is invalid - let consumer handle logout
       if (response.status === 401) {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        window.location.href = "/login";
+        console.log("[API] 401 Unauthorized - clearing auth");
+        localStorage.removeItem("creditline_token");
+        localStorage.removeItem("creditline_user");
+        // Dispatch custom event that AuthContext listens for
+        window.dispatchEvent(new Event("auth:logout"));
         return { error: "Unauthorized" };
       }
 

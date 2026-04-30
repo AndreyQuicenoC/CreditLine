@@ -19,17 +19,20 @@ export const usersAPI = {
   // Get all users (admin only)
   listUsers: async () => {
     try {
-      logger.info("usersAPI", "Fetching users list");
+      console.log("[usersAPI] Fetching users list");
       const response = await apiClient.get<UserProfile[]>("/api/users/list/");
       if (response.error) {
+        console.error("[usersAPI] Failed to fetch users:", response.error);
         logger.error("usersAPI", "Failed to fetch users", new Error(response.error));
       } else {
+        console.log("[usersAPI] Users fetched successfully:", response.data?.length);
         logger.info("usersAPI", "Users fetched successfully", {
           count: response.data?.length,
         });
       }
       return response;
     } catch (error) {
+      console.error("[usersAPI] Error fetching users:", error);
       logger.error("usersAPI", "Error fetching users", error as Error);
       return { error: "Failed to fetch users" };
     }
@@ -110,18 +113,21 @@ export const usersAPI = {
   // Get system configuration (admin only)
   getSystemConfig: async () => {
     try {
-      logger.info("usersAPI", "Fetching system configuration");
+      console.log("[usersAPI] Fetching system configuration");
       const response = await apiClient.get<SystemConfig>(
         "/api/users/system-config/"
       );
 
       if (response.error) {
+        console.error("[usersAPI] Failed to fetch system config:", response.error);
         logger.error("usersAPI", "Failed to fetch system config", new Error(response.error));
       } else {
+        console.log("[usersAPI] System config fetched successfully:", response.data);
         logger.info("usersAPI", "System config fetched successfully");
       }
       return response;
     } catch (error) {
+      console.error("[usersAPI] Error fetching system config:", error);
       logger.error("usersAPI", "Error fetching system config", error as Error);
       return { error: "Failed to fetch system config" };
     }
