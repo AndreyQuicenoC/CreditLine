@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Edit2, Trash2, Shield, User, Save } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
@@ -14,30 +14,66 @@ interface UsuarioSistema {
   ultimoAcceso: string;
 }
 
-const initialUsuarios: UsuarioSistema[] = [
-  { id: "1", nombre: "Admin Principal", email: "admin@creditline.com", rol: "ADMIN", ultimoAcceso: "2026-04-29" },
-  { id: "2", nombre: "Operario Demo", email: "operario@creditline.com", rol: "OPERARIO", ultimoAcceso: "2026-04-29" },
-];
-
 interface UsuarioForm {
   nombre: string;
   email: string;
   rol: UserRole;
+  password: string;
 }
 
 function AdminContent() {
-  const [usuarios, setUsuarios] = useState<UsuarioSistema[]>(initialUsuarios);
+  const [usuarios, setUsuarios] = useState<UsuarioSistema[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [form, setForm] = useState<UsuarioForm>({ nombre: "", email: "", rol: "OPERARIO" });
+  const [form, setForm] = useState<UsuarioForm>({ nombre: "", email: "", rol: "OPERARIO", password: "" });
   const [errors, setErrors] = useState<Partial<UsuarioForm>>({});
   const [tasaInteres, setTasaInteres] = useState(10);
   const [impuestoRetraso, setImpuestoRetraso] = useState(5);
+  const [loading, setLoading] = useState(false);
+
+  // Load users and config on mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const token = localStorage.getItem('creditline_token');
+        if (!token) return;
+
+        // Fetch users
+        const usersRes = await fetch('http://localhost:8000/api/users/list/', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (usersRes.ok) {
+          const data = await usersRes.json();
+          setUsuarios(data.map((u: any) => ({
+            id: u.auth_id,
+            nombre: u.nombre,
+            email: u.email,
+            rol: u.rol,
+            ultimoAcceso: u.ultimo_acceso || "—"
+          })));
+        }
+
+        // Fetch system config
+        const configRes = await fetch('http://localhost:8000/api/users/system-config/', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (configRes.ok) {
+          const config = await configRes.json();
+          setTasaInteres(config.tasa_interes);
+          setImpuestoRetraso(config.impuesto_retraso);
+        }
+      } catch (error) {
+        console.error('Error loading data:', error);
+      }
+    };
+
+    loadData();
+  }, []);
 
   const openNew = () => {
     setEditingId(null);
-    setForm({ nombre: "", email: "", rol: "OPERARIO" });
+    setForm({ nombre: "", email: "", rol: "OPERARIO", password: "" });
     setErrors({});
     setShowForm(true);
   };
@@ -54,40 +90,110 @@ function AdminContent() {
     if (!form.nombre.trim()) e.nombre = "El nombre es requerido.";
     if (!form.email.trim()) e.email = "El correo es requerido.";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Correo inválido.";
+    if (!editingId && !form.password) e.password = "La contraseña es requerida.";
+    else if (form.password && form.password.length < 6) e.password = "Mínimo 6 caracteres.";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validate()) {
       toast.error("Formulario incompleto", { description: "Revisa los campos requeridos." });
       return;
     }
-    if (editingId) {
-      setUsuarios((prev) =>
-        prev.map((u) => (u.id === editingId ? { ...u, ...form } : u))
-      );
-      toast.success("Usuario actualizado", { description: `"${form.nombre}" fue actualizado.` });
-    } else {
-      const newUser: UsuarioSistema = {
-        id: `u${Date.now()}`,
-        nombre: form.nombre,
-        email: form.email,
-        rol: form.rol,
-        ultimoAcceso: "—",
-      };
-      setUsuarios((prev) => [...prev, newUser]);
-      toast.success("Usuario creado", { description: `"${form.nombre}" fue agregado al sistema.` });
+
+    setLoading(true);
+    const token = localStorage.getItem('creditline_token');
+
+    try {
+      if (editingId) {
+        // Update existing user
+        const res = await fetch(`http://localhost:8000/api/users/profile/update/`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ nombre: form.nombre })
+        });
+
+        if (res.ok) {
+          setUsuarios(prev =>
+            prev.map(u => (u.id === editingId ? { ...u, nombre: form.nombre } : u))
+          );
+          toast.success("Usuario actualizado", { description: `"${form.nombre}" fue actualizado.` });
+        } else {
+          const error = await res.json();
+          toast.error("Error al actualizar", { description: error.error || "Intenta de nuevo." });
+        }
+      } else {
+        // Create new user
+        const res = await fetch('http://localhost:8000/api/users/create/', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            nombre: form.nombre,
+            email: form.email,
+            rol: form.rol,
+            password: form.password
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const newUser = data.user;
+          setUsuarios(prev => [...prev, {
+            id: newUser.auth_id,
+            nombre: newUser.nombre,
+            email: newUser.email,
+            rol: newUser.rol,
+            ultimoAcceso: "—"
+          }]);
+          toast.success("Usuario creado", { description: `"${form.nombre}" fue agregado al sistema.` });
+        } else {
+          const error = await res.json();
+          if (typeof error === 'object') {
+            const errorMsg = Object.values(error)[0];
+            toast.error("Error al crear usuario", { description: String(errorMsg) });
+          } else {
+            toast.error("Error al crear usuario", { description: "Intenta de nuevo." });
+          }
+        }
+      }
+      setShowForm(false);
+      setEditingId(null);
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error("Error de conexión", { description: "No se pudo conectar al servidor." });
+    } finally {
+      setLoading(false);
     }
-    setShowForm(false);
-    setEditingId(null);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     const u = usuarios.find((x) => x.id === deleteId);
-    setUsuarios((prev) => prev.filter((x) => x.id !== deleteId));
-    setDeleteId(null);
-    toast.success("Usuario eliminado", { description: `"${u?.nombre}" fue eliminado.` });
+    const token = localStorage.getItem('creditline_token');
+
+    try {
+      const res = await fetch(`http://localhost:8000/api/users/${deleteId}/delete/`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (res.ok || res.status === 404) {
+        setUsuarios((prev) => prev.filter((x) => x.id !== deleteId));
+        setDeleteId(null);
+        toast.success("Usuario eliminado", { description: `"${u?.nombre}" fue eliminado.` });
+      } else {
+        toast.error("Error al eliminar", { description: "No se pudo eliminar el usuario." });
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error("Error de conexión", { description: "No se pudo conectar al servidor." });
+    }
   };
 
   return (
@@ -214,7 +320,32 @@ function AdminContent() {
               </div>
             </div>
             <button
-              onClick={() => toast.success("Configuración guardada", { description: "Los cambios fueron aplicados." })}
+              onClick={async () => {
+                const token = localStorage.getItem('creditline_token');
+                try {
+                  const res = await fetch('http://localhost:8000/api/users/system-config/update/', {
+                    method: 'PUT',
+                    headers: {
+                      'Authorization': `Bearer ${token}`,
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                      tasa_interes: tasaInteres,
+                      impuesto_retraso: impuestoRetraso
+                    })
+                  });
+
+                  if (res.ok) {
+                    toast.success("Configuración guardada", { description: "Los cambios fueron aplicados." });
+                  } else {
+                    const error = await res.json();
+                    toast.error("Error al guardar", { description: error.error || "Intenta de nuevo." });
+                  }
+                } catch (error) {
+                  console.error('Error:', error);
+                  toast.error("Error de conexión", { description: "No se pudo conectar al servidor." });
+                }
+              }}
               className="w-full bg-[#2563EB] text-white py-2.5 rounded-xl hover:bg-[#1E3A8A] transition-colors text-sm flex items-center justify-center gap-2"
             >
               <Save className="w-4 h-4" aria-hidden="true" />
@@ -228,21 +359,14 @@ function AdminContent() {
           <div className="space-y-3">
             {[
               ["Versión", "1.0.0"],
-              ["Entorno", "Demo"],
-              ["Último respaldo", "2026-04-29 03:00 AM"],
-              ["Base de datos", "Local (mockData)"],
+              ["Entorno", "Producción"],
+              ["Último respaldo", new Date().toLocaleString()],
             ].map(([k, v]) => (
               <div key={k} className="flex items-center justify-between py-2 border-b border-[#F1F5F9]">
                 <span className="text-[#64748B] text-sm">{k}</span>
                 <span className="text-[#0F172A] text-sm font-medium">{v}</span>
               </div>
             ))}
-            <button
-              onClick={() => toast.success("Respaldo iniciado", { description: "Se está generando el respaldo del sistema." })}
-              className="w-full mt-2 bg-[#0F172A] text-white py-2.5 rounded-xl hover:bg-[#1E293B] transition-colors text-sm"
-            >
-              Crear Respaldo Ahora
-            </button>
           </div>
         </div>
       </div>
@@ -298,6 +422,18 @@ function AdminContent() {
                     <option value="ADMIN">Administrador</option>
                   </select>
                 </div>
+                {!editingId && (
+                  <div>
+                    <label htmlFor="uf-password" className="block text-[#334155] mb-1.5 text-sm">
+                      Contraseña <span className="text-[#DC2626]">*</span>
+                    </label>
+                    <input id="uf-password" type="password" value={form.password}
+                      onChange={(e) => { setForm((p) => ({ ...p, password: e.target.value })); setErrors((p) => ({ ...p, password: "" })); }}
+                      className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] text-sm ${errors.password ? "border-[#DC2626]" : "border-[#E2E8F0]"}`}
+                      placeholder="Mínimo 6 caracteres" />
+                    {errors.password && <p className="text-[#DC2626] text-xs mt-1">{errors.password}</p>}
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-3 mt-6">

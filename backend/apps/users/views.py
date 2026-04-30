@@ -253,3 +253,350 @@ def list_users(request):
             {'error': 'Internal server error'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_user(request):
+    """
+    Create a new user (admin only).
+
+    Accepts: nombre, email, rol (ADMIN, OPERARIO), password
+    Creates user in both user_profiles table and mock_auth_users for password storage.
+    """
+    try:
+        user_id = get_user_id_from_token(request)
+
+        if not user_id:
+            return Response(
+                {'error': 'Invalid token format'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        # Check if user is admin
+        admin_profile = UserProfile.objects.get(auth_id=user_id)
+        if not admin_profile.is_admin:
+            return Response(
+                {'error': 'Only admins can create users'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Validate required fields
+        nombre = request.data.get('nombre', '').strip()
+        email = request.data.get('email', '').strip()
+        rol = request.data.get('rol', '').strip()
+        password = request.data.get('password', '').strip()
+
+        errors = {}
+        if not nombre:
+            errors['nombre'] = 'El nombre es requerido'
+        if not email:
+            errors['email'] = 'El correo es requerido'
+        elif not (r'^[^\s@]+@[^\s@]+\.[^\s@]+$', email):
+            # Simple email validation
+            if '@' not in email or '.' not in email:
+                errors['email'] = 'Correo inválido'
+        if not rol:
+            errors['rol'] = 'El rol es requerido'
+        elif rol not in ['ADMIN', 'OPERARIO']:
+            errors['rol'] = 'Rol inválido (debe ser ADMIN o OPERARIO)'
+        if not password:
+            errors['password'] = 'La contraseña es requerida'
+        elif len(password) < 6:
+            errors['password'] = 'La contraseña debe tener al menos 6 caracteres'
+
+        if errors:
+            return Response(errors, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if email already exists
+        if UserProfile.objects.filter(email=email).exists():
+            return Response(
+                {'email': 'Este correo ya está registrado'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Create user profile
+        import uuid
+        new_auth_id = uuid.uuid4()
+
+        user_profile = UserProfile.objects.create(
+            auth_id=new_auth_id,
+            nombre=nombre,
+            email=email,
+            rol=rol,
+            is_active=True
+        )
+
+        # Store password in mock_auth_users table
+        try:
+            from django.db import connection
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO mock_auth_users (auth_id, email, encrypted_password)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (email) DO NOTHING;
+                    """,
+                    [str(new_auth_id), email, password]
+                )
+        except Exception as e:
+            logger.error(f"Error storing password: {str(e)}")
+            # Delete the created profile if password storage fails
+            user_profile.delete()
+            return Response(
+                {'error': 'Error al crear el usuario. Por favor intenta de nuevo.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        serializer = UserProfileSerializer(user_profile)
+        return Response(
+            {
+                'user': serializer.data,
+                'message': f'Usuario "{nombre}" creado exitosamente'
+            },
+            status=status.HTTP_201_CREATED
+        )
+
+    except UserProfile.DoesNotExist:
+        return Response(
+            {'error': 'User profile not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        logger.error(f"Error creating user: {str(e)}")
+        return Response(
+            {'error': 'Internal server error'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_system_config(request):
+    """
+    Get system configuration (admin only).
+
+    Returns current values for tasa_interes and impuesto_retraso.
+    """
+    try:
+        user_id = get_user_id_from_token(request)
+
+        if not user_id:
+            return Response(
+                {'error': 'Invalid token format'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        # Check if user is admin
+        profile = UserProfile.objects.get(auth_id=user_id)
+        if not profile.is_admin:
+            return Response(
+                {'error': 'Only admins can access system configuration'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT tasa_interes, impuesto_retraso
+                FROM system_config
+                LIMIT 1;
+                """
+            )
+            row = cursor.fetchone()
+
+            if row:
+                return Response({
+                    'tasa_interes': float(row[0]),
+                    'impuesto_retraso': float(row[1])
+                }, status=status.HTTP_200_OK)
+            else:
+                # Return defaults if config doesn't exist
+                return Response({
+                    'tasa_interes': 10.0,
+                    'impuesto_retraso': 5.0
+                }, status=status.HTTP_200_OK)
+
+    except UserProfile.DoesNotExist:
+        return Response(
+            {'error': 'User profile not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        logger.error(f"Error fetching system config: {str(e)}")
+        return Response(
+            {'error': 'Internal server error'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_user(request, user_id):
+    """
+    Delete a user (admin only).
+
+    Accepts user_id as URL parameter.
+    Removes user from user_profiles table.
+    """
+    try:
+        auth_user_id = get_user_id_from_token(request)
+
+        if not auth_user_id:
+            return Response(
+                {'error': 'Invalid token format'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        # Check if user is admin
+        admin_profile = UserProfile.objects.get(auth_id=auth_user_id)
+        if not admin_profile.is_admin:
+            return Response(
+                {'error': 'Only admins can delete users'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Don't allow deleting yourself
+        if str(auth_user_id) == str(user_id):
+            return Response(
+                {'error': 'No puedes eliminar tu propia cuenta'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        profile = UserProfile.objects.get(auth_id=user_id)
+        nombre = profile.nombre
+        profile.delete()
+
+        return Response(
+            {'message': f'Usuario "{nombre}" eliminado exitosamente'},
+            status=status.HTTP_200_OK
+        )
+
+    except UserProfile.DoesNotExist:
+        return Response(
+            {'error': 'User not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        logger.error(f"Error deleting user: {str(e)}")
+        return Response(
+            {'error': 'Internal server error'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def update_system_config(request):
+    """
+    Update system configuration (admin only).
+
+    Accepts: tasa_interes, impuesto_retraso
+    Stores updated values in system_config table.
+    """
+    try:
+        user_id = get_user_id_from_token(request)
+
+        if not user_id:
+            return Response(
+                {'error': 'Invalid token format'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        # Check if user is admin
+        profile = UserProfile.objects.get(auth_id=user_id)
+        if not profile.is_admin:
+            return Response(
+                {'error': 'Only admins can update system configuration'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        tasa_interes = request.data.get('tasa_interes')
+        impuesto_retraso = request.data.get('impuesto_retraso')
+
+        errors = {}
+        if tasa_interes is not None:
+            try:
+                tasa_interes = float(tasa_interes)
+                if tasa_interes < 0 or tasa_interes > 100:
+                    errors['tasa_interes'] = 'La tasa debe estar entre 0 y 100'
+            except (ValueError, TypeError):
+                errors['tasa_interes'] = 'La tasa debe ser un número válido'
+
+        if impuesto_retraso is not None:
+            try:
+                impuesto_retraso = float(impuesto_retraso)
+                if impuesto_retraso < 0 or impuesto_retraso > 100:
+                    errors['impuesto_retraso'] = 'El impuesto debe estar entre 0 y 100'
+            except (ValueError, TypeError):
+                errors['impuesto_retraso'] = 'El impuesto debe ser un número válido'
+
+        if errors:
+            return Response(errors, status=status.HTTP_400_BAD_REQUEST)
+
+        from django.db import connection
+        with connection.cursor() as cursor:
+            # Update or insert configuration
+            cursor.execute(
+                """
+                INSERT INTO system_config (tasa_interes, impuesto_retraso, updated_by)
+                VALUES (
+                    COALESCE(%s, 10.0),
+                    COALESCE(%s, 5.0),
+                    %s
+                )
+                ON CONFLICT DO NOTHING;
+                """,
+                [tasa_interes, impuesto_retraso, user_id]
+            )
+
+            if tasa_interes is not None or impuesto_retraso is not None:
+                update_fields = []
+                update_values = []
+
+                if tasa_interes is not None:
+                    update_fields.append('tasa_interes = %s')
+                    update_values.append(tasa_interes)
+                if impuesto_retraso is not None:
+                    update_fields.append('impuesto_retraso = %s')
+                    update_values.append(impuesto_retraso)
+
+                update_fields.append('updated_by = %s')
+                update_values.append(user_id)
+
+                cursor.execute(
+                    f"""
+                    UPDATE system_config
+                    SET {', '.join(update_fields)}
+                    LIMIT 1;
+                    """,
+                    update_values
+                )
+
+            cursor.execute(
+                """
+                SELECT tasa_interes, impuesto_retraso
+                FROM system_config
+                LIMIT 1;
+                """
+            )
+            row = cursor.fetchone()
+
+            return Response({
+                'tasa_interes': float(row[0]) if row else 10.0,
+                'impuesto_retraso': float(row[1]) if row else 5.0,
+                'message': 'Configuración actualizada exitosamente'
+            }, status=status.HTTP_200_OK)
+
+    except UserProfile.DoesNotExist:
+        return Response(
+            {'error': 'User profile not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        logger.error(f"Error updating system config: {str(e)}")
+        return Response(
+            {'error': 'Internal server error'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
