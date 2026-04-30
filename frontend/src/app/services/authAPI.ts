@@ -13,7 +13,10 @@ export const authAPI = {
     if (response.data?.token) {
       // Store token as plain string (JWT already has exp in payload)
       localStorage.setItem("creditline_token", response.data.token);
-      localStorage.setItem("creditline_user", JSON.stringify(response.data.user));
+      localStorage.setItem(
+        "creditline_user",
+        JSON.stringify(response.data.user),
+      );
       console.log("[Auth] Login successful, token stored");
     }
 

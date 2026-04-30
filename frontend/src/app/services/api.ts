@@ -1,4 +1,5 @@
-const API_URL = (import.meta.env.VITE_API_URL as string) || "http://localhost:8000";
+const API_URL =
+  (import.meta.env.VITE_API_URL as string) || "http://localhost:8000";
 const API_TIMEOUT = Number(import.meta.env.VITE_API_TIMEOUT as string) || 10000;
 
 if (!API_URL) {
@@ -46,6 +47,7 @@ class APIClient {
       const isAuthEndpoint = endpoint.includes("/login/");
 
       if (!token && !isAuthEndpoint) {
+        console.warn(`[API] Missing auth token for ${options.method} ${endpoint}`);
         return { error: "Missing auth token" };
       }
 
@@ -58,6 +60,8 @@ class APIClient {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
+      console.log(`[API] ${options.method} ${endpoint}`, { hasToken: !!token });
+
       const response = await fetch(`${this.baseURL}${endpoint}`, {
         ...options,
         headers,
@@ -66,9 +70,10 @@ class APIClient {
 
       clearTimeout(timeoutId);
 
-      // 401 means token is invalid - let consumer handle logout
+      const data = await response.json().catch(() => ({}));
+      
       if (response.status === 401) {
-        console.log("[API] 401 Unauthorized - clearing auth");
+        console.error(`[API] 401 Unauthorized - clearing auth`);
         localStorage.removeItem("creditline_token");
         localStorage.removeItem("creditline_user");
         // Dispatch custom event that AuthContext listens for
@@ -77,19 +82,40 @@ class APIClient {
       }
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        // Handle different error formats
+        let errorMsg = `HTTP ${response.status}`;
+        
+        // Try to extract error message from various formats
+        if (data.error) {
+          errorMsg = data.error;
+        } else if (data.message) {
+          errorMsg = data.message;
+        } else if (typeof data === 'object' && Object.keys(data).length > 0) {
+          // Validation errors from backend (e.g., {nombre: 'required', email: 'invalid'})
+          const errors = Object.entries(data)
+            .filter(([key]) => key !== 'status' && key !== 'statusCode')
+            .map(([key, value]) => `${key}: ${value}`)
+            .join('; ');
+          if (errors) {
+            errorMsg = errors;
+          }
+        }
+        
+        console.error(`[API] ${options.method} ${endpoint} failed:`, errorMsg, data);
         return {
-          error: errorData.error || `HTTP ${response.status}`,
+          error: errorMsg,
         };
       }
 
-      const data = await response.json();
+      console.log(`[API] ${options.method} ${endpoint} success`);
       return { data };
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
+        console.error(`[API] Request timeout for ${options.method} ${endpoint}`);
         return { error: "Request timeout" };
       }
 
+      console.error(`[API] Request error:`, error);
       return {
         error: error instanceof Error ? error.message : "Unknown error",
       };

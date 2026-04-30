@@ -52,8 +52,10 @@ class Logger {
     }
 
     // Console output based on environment and log level
+    // Always log in dev, in production only log errors and critical
     const shouldLog =
-      this.isDev || (this.isProduction && level !== LogLevel.DEBUG);
+      this.isDev || 
+      (!this.isDev && (level === LogLevel.ERROR || level === LogLevel.CRITICAL || level === LogLevel.WARN));
 
     if (!shouldLog) return;
 

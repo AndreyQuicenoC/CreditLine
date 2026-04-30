@@ -12,7 +12,10 @@ console.log("=".repeat(60));
 console.log("\n[1] localStorage Status:");
 const token = localStorage.getItem("creditline_token");
 const user = localStorage.getItem("creditline_user");
-console.log("  - creditline_token:", token ? `${token.substring(0, 50)}...` : "NOT FOUND");
+console.log(
+  "  - creditline_token:",
+  token ? `${token.substring(0, 50)}...` : "NOT FOUND",
+);
 console.log("  - creditline_user:", user ? JSON.parse(user) : "NOT FOUND");
 
 if (user) {
@@ -33,14 +36,14 @@ if (token) {
   fetch(`${API_URL}/api/users/list/`, {
     method: "GET",
     headers: {
-      "Authorization": `Bearer ${token}`,
-      "Content-Type": "application/json"
-    }
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
   })
-    .then(res => {
+    .then((res) => {
       console.log("  - Status:", res.status);
       if (res.status === 200) {
-        return res.json().then(data => {
+        return res.json().then((data) => {
           console.log("  - Response: Success!");
           console.log("  - Users count:", data.length);
           console.log("  - Users:", data);
@@ -50,12 +53,12 @@ if (token) {
         console.error("  - Response: 401 Unauthorized");
         console.error("  - Token may be invalid or expired");
       } else {
-        return res.json().then(data => {
+        return res.json().then((data) => {
           console.error("  - Response error:", data);
         });
       }
     })
-    .catch(err => console.error("  - Error:", err));
+    .catch((err) => console.error("  - Error:", err));
 } else {
   console.warn("  - No token found, skipping request");
 }
@@ -66,21 +69,21 @@ if (token) {
   fetch(`${API_URL}/api/users/system-config/`, {
     method: "GET",
     headers: {
-      "Authorization": `Bearer ${token}`,
-      "Content-Type": "application/json"
-    }
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
   })
-    .then(res => {
+    .then((res) => {
       console.log("  - Status:", res.status);
       if (res.status === 200) {
-        return res.json().then(data => {
+        return res.json().then((data) => {
           console.log("  - Response:", data);
         });
       } else {
         console.error("  - Error status:", res.status);
       }
     })
-    .catch(err => console.error("  - Error:", err));
+    .catch((err) => console.error("  - Error:", err));
 } else {
   console.warn("  - No token found, skipping request");
 }
@@ -102,9 +105,9 @@ window.creditlineDiagnostics = {
     return fetch(`${API_URL}/api/users/login/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password })
-    }).then(r => r.json());
-  }
+      body: JSON.stringify({ email, password }),
+    }).then((r) => r.json());
+  },
 };
 
 console.log("Available commands:");

@@ -52,7 +52,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (token && storedUser) {
       try {
         const parsed = JSON.parse(storedUser);
-        console.log("[AuthContext] User restored:", parsed.email, "role:", parsed.rol);
+        console.log(
+          "[AuthContext] User restored:",
+          parsed.email,
+          "role:",
+          parsed.rol,
+        );
         setUser(parsed);
       } catch (e) {
         console.log("[AuthContext] Error parsing user, clearing storage");
@@ -71,8 +76,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
     };
 
+    // Listen for user updates (e.g., profile changes)
+    const handleUserUpdate = () => {
+      console.log("[AuthContext] User update event received");
+      const storedUser = localStorage.getItem("creditline_user");
+      if (storedUser) {
+        try {
+          const updated = JSON.parse(storedUser);
+          console.log("[AuthContext] User updated:", updated.nombre);
+          setUser(updated);
+        } catch (e) {
+          console.error("[AuthContext] Error parsing updated user");
+        }
+      }
+    };
+
     window.addEventListener("auth:logout", handleLogout);
-    return () => window.removeEventListener("auth:logout", handleLogout);
+    window.addEventListener("user:updated", handleUserUpdate);
+    return () => {
+      window.removeEventListener("auth:logout", handleLogout);
+      window.removeEventListener("user:updated", handleUserUpdate);
+    };
   }, []);
 
   // LOGIN
@@ -108,7 +132,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
       }
 
-      console.log("[AuthContext] Login successful for:", data.user.email, "role:", data.user.rol);
+      console.log(
+        "[AuthContext] Login successful for:",
+        data.user.email,
+        "role:",
+        data.user.rol,
+      );
 
       // STORE AUTH
       localStorage.setItem("creditline_token", data.token);
@@ -145,11 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isOperario: user?.rol === "OPERARIO",
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

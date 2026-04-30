@@ -20,6 +20,8 @@ import { useAuth } from "../../../context/AuthContext";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
 import { Tooltip } from "../../ui/ui/tooltip";
+import { usersAPI } from "../../../services/usersAPI";
+import { logger } from "../../../../utils/logger";
 
 export function Navbar() {
   const location = useLocation();
@@ -65,28 +67,31 @@ export function Navbar() {
       return;
     }
 
-    const token = localStorage.getItem('creditline_token');
     try {
-      const res = await fetch('http://localhost:8000/api/users/profile/update/', {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ nombre: profileName })
-      });
+      logger.info("Navbar", "Updating profile", { nombre: profileName });
+      
+      const res = await usersAPI.updateUser(profileName);
 
-      if (res.ok) {
+      if (res.data) {
+        // Update localStorage with new user data
+        const currentUser = JSON.parse(localStorage.getItem('creditline_user') || '{}');
+        const updatedUser = { ...currentUser, nombre: profileName };
+        localStorage.setItem('creditline_user', JSON.stringify(updatedUser));
+        
+        // Dispatch event to update AuthContext
+        window.dispatchEvent(new Event('user:updated'));
+        
+        logger.info("Navbar", "Profile updated successfully", { nombre: profileName });
         toast.success("Perfil actualizado", {
           description: "Tu nombre fue actualizado correctamente.",
         });
         setShowProfileModal(false);
       } else {
-        const error = await res.json();
-        toast.error("Error al actualizar", { description: error.error || "Intenta de nuevo." });
+        logger.warn("Navbar", "Failed to update profile", { error: res.error });
+        toast.error("Error al actualizar", { description: res.error || "Intenta de nuevo." });
       }
     } catch (error) {
-      console.error('Error:', error);
+      logger.error("Navbar", "Error updating profile", error as Error);
       toast.error("Error de conexión", { description: "No se pudo conectar al servidor." });
     }
   };

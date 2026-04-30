@@ -5,6 +5,7 @@
 Se corrigió un problema crítico en la autenticación JWT que impedía que los tokens fueran reconocidos por el backend. El problema era una **inconsistencia en las claves de localStorage**.
 
 ### Problema Original
+
 - `api.ts` buscaba el token en `"token"`
 - `authAPI.ts` guardaba el token en `"token"`
 - `AuthContext.tsx` guardaba/leía del token en `"creditline_token"`
@@ -13,15 +14,19 @@ Se corrigió un problema crítico en la autenticación JWT que impedía que los 
 ### Solución Implementada
 
 #### 1. Estandarización de Claves de localStorage
+
 - **Clave única**: `"creditline_token"`
 - Se actualizaron todos los servicios para usar esta clave consistentemente
 
 **Archivos modificados:**
+
 - `api.ts`: Ahora busca `"creditline_token"`
 - `authAPI.ts`: Ahora almacena en `"creditline_token"`
 
 #### 2. Nuevo Módulo `usersAPI.ts`
+
 Servicio centralizado para todas las operaciones de usuarios:
+
 ```typescript
 export const usersAPI = {
   listUsers(),      // Obtener lista de usuarios
@@ -34,13 +39,16 @@ export const usersAPI = {
 ```
 
 **Ventajas:**
+
 - Código DRY (No Repetición)
 - Logging centralizado
 - Manejo de errores consistente
 - Tipado TypeScript completo
 
 #### 3. Token con Expiración (1 hora)
+
 El token ahora se almacena con timestamp:
+
 ```typescript
 {
   token: "eyJhbGciOiJIUzI1NiIs...",
@@ -49,17 +57,21 @@ El token ahora se almacena con timestamp:
 ```
 
 Se valida en cada petición:
+
 - Si ha pasado > 1 hora: se limpia localStorage y redirige a login
 - Si es válido: se envía normalmente
 
 #### 4. Logs Mejorados
+
 Se agregaron logs en:
+
 - **Backend**: `authentication.py` - Detalles de validación JWT
 - **Backend**: `views.py` - Login, listUsers, etc.
 - **Frontend**: `usersAPI.ts` - Operaciones de usuarios
 - **Frontend**: `Administracion.tsx` - Acciones de admin
 
 **Logs sin información sensible:**
+
 ```
 ✓ JWT authentication successful for user=admin@creditline.com, role=ADMIN
 ✓ Login successful for user=admin@creditline.com, role=ADMIN
@@ -134,6 +146,7 @@ Se agregaron logs en:
 ### Autenticación
 
 #### POST `/api/users/login/`
+
 ```bash
 curl -X POST http://localhost:8000/api/users/login/ \
   -H "Content-Type: application/json" \
@@ -144,6 +157,7 @@ curl -X POST http://localhost:8000/api/users/login/ \
 ```
 
 **Response:**
+
 ```json
 {
   "token": "eyJhbGciOiJIUzI1NiIs...",
@@ -162,6 +176,7 @@ curl -X POST http://localhost:8000/api/users/login/ \
 ### Usuarios (Requieren Autenticación)
 
 #### GET `/api/users/list/`
+
 Solo administradores. Retorna lista de todos los usuarios.
 
 ```bash
@@ -170,6 +185,7 @@ curl -H "Authorization: Bearer {token}" \
 ```
 
 #### POST `/api/users/create/`
+
 Solo administradores. Crea nuevo usuario.
 
 ```bash
@@ -186,6 +202,7 @@ curl -X POST \
 ```
 
 #### PUT `/api/users/profile/update/`
+
 Actualiza perfil del usuario autenticado.
 
 ```bash
@@ -197,6 +214,7 @@ curl -X PUT \
 ```
 
 #### DELETE `/api/users/{user_id}/delete/`
+
 Solo administradores. Elimina un usuario.
 
 ```bash
@@ -208,6 +226,7 @@ curl -X DELETE \
 ### Configuración del Sistema (Requieren Autenticación)
 
 #### GET `/api/users/system-config/`
+
 Obtiene configuración (solo admin).
 
 ```bash
@@ -216,6 +235,7 @@ curl -H "Authorization: Bearer {token}" \
 ```
 
 #### PUT `/api/users/system-config/update/`
+
 Actualiza configuración (solo admin).
 
 ```bash
@@ -231,44 +251,51 @@ curl -X PUT \
 
 ## Usuarios de Prueba
 
-| Email | Contraseña | Rol | Notas |
-|-------|-----------|-----|-------|
-| admin@creditline.com | admin123 | ADMIN | Acceso total al sistema |
-| operario@creditline.com | operario123 | OPERARIO | Acceso limitado |
+| Email                   | Contraseña  | Rol      | Notas                   |
+| ----------------------- | ----------- | -------- | ----------------------- |
+| admin@creditline.com    | admin123    | ADMIN    | Acceso total al sistema |
+| operario@creditline.com | operario123 | OPERARIO | Acceso limitado         |
 
 ## Codes de Error
 
 ### 400 Bad Request
+
 - Datos faltantes o inválidos
 - Email duplicado en creación de usuario
 - Contraseña muy corta
 
 ### 401 Unauthorized
+
 - Credenciales incorrectas en login
 - Token expirado
 - Token inválido
 - Sin header Authorization
 
 ### 403 Forbidden
+
 - Usuario no es administrador
 - Intento de operación no permitida
 
 ### 404 Not Found
+
 - Usuario o recurso no existe
 
 ### 500 Internal Server Error
+
 - Error en el servidor
 - Problema de conectividad con BD
 
 ## Testing
 
 ### Ejecutar pruebas de API
+
 ```bash
 cd CreditLine/backend
 python ../scripts/test_api.py
 ```
 
 ### Verificar JWT en manualmente
+
 ```bash
 python manage.py shell
 
@@ -285,6 +312,7 @@ print(decoded)
 ### Error: 401 Unauthorized al llamar API protegido
 
 **Causas comunes:**
+
 1. Token no está en localStorage
    - Verificar que login fue exitoso
    - Ver si `localStorage.getItem("creditline_token")` retorna algo
@@ -299,6 +327,7 @@ print(decoded)
 ### Error: CORS issues
 
 Verificar que:
+
 1. Backend tiene `CORS_ALLOWED_ORIGINS` correcto
 2. Frontend hace requests a URL configurada en `VITE_API_URL`
 
@@ -310,11 +339,13 @@ Verificar que:
 ## Notas de Seguridad
 
 ⚠️ **DESARROLLO SOLAMENTE:**
+
 - Secret key está en código (`django-insecure-...`)
 - Contraseñas almacenadas en tabla `mock_auth_users`
 - JWT solo protege transmisión, no almacenamiento
 
 🔐 **PRODUCCIÓN (TODO):**
+
 - Usar variables de entorno para SECRET_KEY
 - Usar Supabase Auth para gestión de usuarios
 - Implementar refresh tokens

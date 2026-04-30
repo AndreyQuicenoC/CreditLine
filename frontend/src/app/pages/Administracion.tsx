@@ -28,7 +28,12 @@ function AdminContent() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [form, setForm] = useState<UsuarioForm>({ nombre: "", email: "", rol: "OPERARIO", password: "" });
+  const [form, setForm] = useState<UsuarioForm>({
+    nombre: "",
+    email: "",
+    rol: "OPERARIO",
+    password: "",
+  });
   const [errors, setErrors] = useState<Partial<UsuarioForm>>({});
   const [tasaInteres, setTasaInteres] = useState(10);
   const [impuestoRetraso, setImpuestoRetraso] = useState(5);
@@ -55,10 +60,13 @@ function AdminContent() {
               email: u.email,
               rol: u.rol,
               ultimoAcceso: u.ultimo_acceso || "—",
-            }))
+            })),
           );
         } else {
-          console.error("[Administracion] Failed to load users:", usersRes.error);
+          console.error(
+            "[Administracion] Failed to load users:",
+            usersRes.error,
+          );
           logger.warn("Administracion", "Failed to load users", {
             error: usersRes.error,
           });
@@ -72,7 +80,10 @@ function AdminContent() {
           setTasaInteres(configRes.data.tasa_interes);
           setImpuestoRetraso(configRes.data.impuesto_retraso);
         } else {
-          console.error("[Administracion] Failed to load system config:", configRes.error);
+          console.error(
+            "[Administracion] Failed to load system config:",
+            configRes.error,
+          );
           logger.warn("Administracion", "Failed to load system config", {
             error: configRes.error,
           });
@@ -104,15 +115,20 @@ function AdminContent() {
     const e: Partial<UsuarioForm> = {};
     if (!form.nombre.trim()) e.nombre = "El nombre es requerido.";
     if (!form.email.trim()) e.email = "El correo es requerido.";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Correo inválido.";
-    if (!editingId && !form.password) e.password = "La contraseña es requerida.";
-    else if (form.password && form.password.length < 6) e.password = "Mínimo 6 caracteres.";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
+      e.email = "Correo inválido.";
+    if (!editingId && !form.password)
+      e.password = "La contraseña es requerida.";
+    else if (form.password && form.password.length < 6)
+      e.password = "Mínimo 6 caracteres.";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
   const handleSave = async () => {
+    console.log("[Administracion] *** HANDLE SAVE CALLED ***", { editingId, form });
     if (!validate()) {
+      console.warn("[Administracion] Validation failed");
       toast.error("Formulario incompleto", {
         description: "Revisa los campos requeridos.",
       });
@@ -126,14 +142,20 @@ function AdminContent() {
         // Update existing user
         logger.info("Administracion", "Updating user", { userId: editingId });
 
-        const res = await usersAPI.updateUser(form.nombre);
+        const res = await usersAPI.editUser(editingId, {
+          nombre: form.nombre,
+          rol: form.rol,
+        });
 
         if (res.data) {
           setUsuarios((prev) =>
-            prev.map((u) => (u.id === editingId ? { ...u, nombre: form.nombre } : u))
+            prev.map((u) =>
+              u.id === editingId ? { ...u, nombre: form.nombre, rol: form.rol } : u,
+            ),
           );
           logger.info("Administracion", "User updated successfully", {
             nombre: form.nombre,
+            rol: form.rol,
           });
           toast.success("Usuario actualizado", {
             description: `"${form.nombre}" fue actualizado.`,
@@ -148,7 +170,9 @@ function AdminContent() {
         }
       } else {
         // Create new user
-        logger.info("Administracion", "Creating new user", { email: form.email });
+        logger.info("Administracion", "Creating new user", {
+          email: form.email,
+        });
 
         const res = await usersAPI.createUser({
           nombre: form.nombre,
@@ -240,7 +264,9 @@ function AdminContent() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-[#0F172A] mb-1">Administración</h1>
-          <p className="text-[#64748B]">Gestión de usuarios y configuración del sistema</p>
+          <p className="text-[#64748B]">
+            Gestión de usuarios y configuración del sistema
+          </p>
         </div>
         <Tooltip content="Crear nuevo usuario del sistema">
           <button
@@ -258,47 +284,102 @@ function AdminContent() {
       <div className="bg-white rounded-2xl shadow-sm border border-[#E2E8F0] overflow-hidden mb-6">
         <div className="px-6 py-4 border-b border-[#E2E8F0]">
           <h3 className="text-[#0F172A]">Usuarios del Sistema</h3>
-          <p className="text-[#64748B] text-sm">{usuarios.length} usuario{usuarios.length !== 1 ? "s" : ""} registrados</p>
+          <p className="text-[#64748B] text-sm">
+            {usuarios.length} usuario{usuarios.length !== 1 ? "s" : ""}{" "}
+            registrados
+          </p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full" role="table" aria-label="Lista de usuarios">
             <thead>
               <tr className="border-b border-[#E2E8F0] bg-[#F8FAFC]">
-                <th scope="col" className="text-left py-3 px-5 text-[#64748B] text-xs font-medium">Usuario</th>
-                <th scope="col" className="text-left py-3 px-5 text-[#64748B] text-xs font-medium hidden sm:table-cell">Email</th>
-                <th scope="col" className="text-left py-3 px-5 text-[#64748B] text-xs font-medium">Rol</th>
-                <th scope="col" className="text-left py-3 px-5 text-[#64748B] text-xs font-medium hidden md:table-cell">Último acceso</th>
-                <th scope="col" className="text-right py-3 px-5 text-[#64748B] text-xs font-medium">Acciones</th>
+                <th
+                  scope="col"
+                  className="text-left py-3 px-5 text-[#64748B] text-xs font-medium"
+                >
+                  Usuario
+                </th>
+                <th
+                  scope="col"
+                  className="text-left py-3 px-5 text-[#64748B] text-xs font-medium hidden sm:table-cell"
+                >
+                  Email
+                </th>
+                <th
+                  scope="col"
+                  className="text-left py-3 px-5 text-[#64748B] text-xs font-medium"
+                >
+                  Rol
+                </th>
+                <th
+                  scope="col"
+                  className="text-left py-3 px-5 text-[#64748B] text-xs font-medium hidden md:table-cell"
+                >
+                  Último acceso
+                </th>
+                <th
+                  scope="col"
+                  className="text-right py-3 px-5 text-[#64748B] text-xs font-medium"
+                >
+                  Acciones
+                </th>
               </tr>
             </thead>
             <tbody>
               {usuarios.map((u) => (
-                <tr key={u.id} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
+                <tr
+                  key={u.id}
+                  className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors"
+                >
                   <td className="py-4 px-5">
                     <div className="flex items-center gap-3">
-                      <div className={`w-9 h-9 rounded-full flex items-center justify-center ${u.rol === "ADMIN" ? "bg-[#EFF6FF]" : "bg-[#F0FDF4]"}`}>
+                      <div
+                        className={`w-9 h-9 rounded-full flex items-center justify-center ${u.rol === "ADMIN" ? "bg-[#EFF6FF]" : "bg-[#F0FDF4]"}`}
+                      >
                         {u.rol === "ADMIN" ? (
-                          <Shield className="w-4 h-4 text-[#2563EB]" aria-hidden="true" />
+                          <Shield
+                            className="w-4 h-4 text-[#2563EB]"
+                            aria-hidden="true"
+                          />
                         ) : (
-                          <User className="w-4 h-4 text-[#16A34A]" aria-hidden="true" />
+                          <User
+                            className="w-4 h-4 text-[#16A34A]"
+                            aria-hidden="true"
+                          />
                         )}
                       </div>
                       <div>
-                        <div className="text-[#0F172A] text-sm font-medium">{u.nombre}</div>
-                        <div className="text-[#94A3B8] text-xs sm:hidden">{u.email}</div>
+                        <div className="text-[#0F172A] text-sm font-medium">
+                          {u.nombre}
+                        </div>
+                        <div className="text-[#94A3B8] text-xs sm:hidden">
+                          {u.email}
+                        </div>
                       </div>
                     </div>
                   </td>
-                  <td className="py-4 px-5 text-[#64748B] text-sm hidden sm:table-cell">{u.email}</td>
+                  <td className="py-4 px-5 text-[#64748B] text-sm hidden sm:table-cell">
+                    {u.email}
+                  </td>
                   <td className="py-4 px-5">
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
-                      u.rol === "ADMIN" ? "bg-[#EFF6FF] text-[#2563EB]" : "bg-[#F0FDF4] text-[#16A34A]"
-                    }`}>
-                      {u.rol === "ADMIN" ? <Shield className="w-3 h-3" /> : <User className="w-3 h-3" />}
+                    <span
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
+                        u.rol === "ADMIN"
+                          ? "bg-[#EFF6FF] text-[#2563EB]"
+                          : "bg-[#F0FDF4] text-[#16A34A]"
+                      }`}
+                    >
+                      {u.rol === "ADMIN" ? (
+                        <Shield className="w-3 h-3" />
+                      ) : (
+                        <User className="w-3 h-3" />
+                      )}
                       {u.rol === "ADMIN" ? "Administrador" : "Operario"}
                     </span>
                   </td>
-                  <td className="py-4 px-5 text-[#64748B] text-sm hidden md:table-cell">{u.ultimoAcceso}</td>
+                  <td className="py-4 px-5 text-[#64748B] text-sm hidden md:table-cell">
+                    {u.ultimoAcceso}
+                  </td>
                   <td className="py-4 px-5">
                     <div className="flex items-center justify-end gap-1">
                       <Tooltip content="Editar usuario">
@@ -335,30 +416,47 @@ function AdminContent() {
           <div className="space-y-5">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <div className="text-[#0F172A] text-sm mb-0.5">Tasa de Interés Predeterminada</div>
-                <div className="text-[#64748B] text-xs">Tasa aplicada a nuevos préstamos</div>
+                <div className="text-[#0F172A] text-sm mb-0.5">
+                  Tasa de Interés Predeterminada
+                </div>
+                <div className="text-[#64748B] text-xs">
+                  Tasa aplicada a nuevos préstamos
+                </div>
               </div>
               <div className="flex items-center gap-2">
-                <input type="number" value={tasaInteres}
+                <input
+                  type="number"
+                  value={tasaInteres}
                   onChange={(e) => setTasaInteres(Number(e.target.value))}
-                  className="w-20 px-3 py-2 border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2563EB] text-sm text-right" />
+                  className="w-20 px-3 py-2 border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2563EB] text-sm text-right"
+                />
                 <span className="text-[#64748B] text-sm">%</span>
               </div>
             </div>
             <div className="flex items-center justify-between gap-4">
               <div>
-                <div className="text-[#0F172A] text-sm mb-0.5">Impuesto por Retraso</div>
-                <div className="text-[#64748B] text-xs">Cargo adicional (%) aplicado a pagos atrasados</div>
+                <div className="text-[#0F172A] text-sm mb-0.5">
+                  Impuesto por Retraso
+                </div>
+                <div className="text-[#64748B] text-xs">
+                  Cargo adicional (%) aplicado a pagos atrasados
+                </div>
               </div>
               <div className="flex items-center gap-2">
-                <input type="number" min="0" step="0.5" value={impuestoRetraso}
+                <input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={impuestoRetraso}
                   onChange={(e) => setImpuestoRetraso(Number(e.target.value))}
-                  className="w-20 px-3 py-2 border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2563EB] text-sm text-right" />
+                  className="w-20 px-3 py-2 border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2563EB] text-sm text-right"
+                />
                 <span className="text-[#64748B] text-sm">%</span>
               </div>
             </div>
             <button
               onClick={async () => {
+                console.log("[Administracion] *** GUARDAR CONFIGURACION CLICKED ***", { tasaInteres, impuestoRetraso });
                 try {
                   const res = await usersAPI.updateSystemConfig({
                     tasa_interes: tasaInteres,
@@ -375,7 +473,11 @@ function AdminContent() {
                     });
                   }
                 } catch (error) {
-                  logger.error("Administracion", "Error saving config", error as Error);
+                  logger.error(
+                    "Administracion",
+                    "Error saving config",
+                    error as Error,
+                  );
                   toast.error("Error de conexión", {
                     description: "No se pudo conectar al servidor.",
                   });
@@ -397,7 +499,10 @@ function AdminContent() {
               ["Entorno", "Producción"],
               ["Último respaldo", new Date().toLocaleString()],
             ].map(([k, v]) => (
-              <div key={k} className="flex items-center justify-between py-2 border-b border-[#F1F5F9]">
+              <div
+                key={k}
+                className="flex items-center justify-between py-2 border-b border-[#F1F5F9]"
+              >
                 <span className="text-[#64748B] text-sm">{k}</span>
                 <span className="text-[#0F172A] text-sm font-medium">{v}</span>
               </div>
@@ -409,8 +514,12 @@ function AdminContent() {
       {/* User form modal */}
       <AnimatePresence>
         {showForm && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            role="dialog" aria-modal="true" aria-labelledby="user-form-title">
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="user-form-title"
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 16 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -422,62 +531,121 @@ function AdminContent() {
                 {editingId ? "Editar Usuario" : "Nuevo Usuario"}
               </h3>
               <p className="text-[#64748B] text-sm mb-5">
-                {editingId ? "Modifica los datos del usuario." : "Registra un nuevo usuario en el sistema."}
+                {editingId
+                  ? "Modifica los datos del usuario."
+                  : "Registra un nuevo usuario en el sistema."}
               </p>
 
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="uf-nombre" className="block text-[#334155] mb-1.5 text-sm">
+                  <label
+                    htmlFor="uf-nombre"
+                    className="block text-[#334155] mb-1.5 text-sm"
+                  >
                     Nombre completo <span className="text-[#DC2626]">*</span>
                   </label>
-                  <input id="uf-nombre" type="text" value={form.nombre}
-                    onChange={(e) => { setForm((p) => ({ ...p, nombre: e.target.value })); setErrors((p) => ({ ...p, nombre: "" })); }}
+                  <input
+                    id="uf-nombre"
+                    type="text"
+                    value={form.nombre}
+                    onChange={(e) => {
+                      setForm((p) => ({ ...p, nombre: e.target.value }));
+                      setErrors((p) => ({ ...p, nombre: "" }));
+                    }}
                     className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] text-sm ${errors.nombre ? "border-[#DC2626]" : "border-[#E2E8F0]"}`}
-                    placeholder="Nombre del usuario" />
-                  {errors.nombre && <p className="text-[#DC2626] text-xs mt-1">{errors.nombre}</p>}
+                    placeholder="Nombre del usuario"
+                  />
+                  {errors.nombre && (
+                    <p className="text-[#DC2626] text-xs mt-1">
+                      {errors.nombre}
+                    </p>
+                  )}
                 </div>
                 <div>
-                  <label htmlFor="uf-email" className="block text-[#334155] mb-1.5 text-sm">
+                  <label
+                    htmlFor="uf-email"
+                    className="block text-[#334155] mb-1.5 text-sm"
+                  >
                     Correo electrónico <span className="text-[#DC2626]">*</span>
                   </label>
-                  <input id="uf-email" type="email" value={form.email}
-                    onChange={(e) => { setForm((p) => ({ ...p, email: e.target.value })); setErrors((p) => ({ ...p, email: "" })); }}
+                  <input
+                    id="uf-email"
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => {
+                      setForm((p) => ({ ...p, email: e.target.value }));
+                      setErrors((p) => ({ ...p, email: "" }));
+                    }}
                     className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] text-sm ${errors.email ? "border-[#DC2626]" : "border-[#E2E8F0]"}`}
-                    placeholder="correo@ejemplo.com" />
-                  {errors.email && <p className="text-[#DC2626] text-xs mt-1">{errors.email}</p>}
+                    placeholder="correo@ejemplo.com"
+                  />
+                  {errors.email && (
+                    <p className="text-[#DC2626] text-xs mt-1">
+                      {errors.email}
+                    </p>
+                  )}
                 </div>
                 <div>
-                  <label htmlFor="uf-rol" className="block text-[#334155] mb-1.5 text-sm">
+                  <label
+                    htmlFor="uf-rol"
+                    className="block text-[#334155] mb-1.5 text-sm"
+                  >
                     Rol <span className="text-[#DC2626]">*</span>
                   </label>
-                  <select id="uf-rol" value={form.rol}
-                    onChange={(e) => setForm((p) => ({ ...p, rol: e.target.value as UserRole }))}
-                    className="w-full px-4 py-3 border border-[#E2E8F0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] bg-white text-sm">
+                  <select
+                    id="uf-rol"
+                    value={form.rol}
+                    onChange={(e) =>
+                      setForm((p) => ({
+                        ...p,
+                        rol: e.target.value as UserRole,
+                      }))
+                    }
+                    className="w-full px-4 py-3 border border-[#E2E8F0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] bg-white text-sm"
+                  >
                     <option value="OPERARIO">Operario</option>
                     <option value="ADMIN">Administrador</option>
                   </select>
                 </div>
                 {!editingId && (
                   <div>
-                    <label htmlFor="uf-password" className="block text-[#334155] mb-1.5 text-sm">
+                    <label
+                      htmlFor="uf-password"
+                      className="block text-[#334155] mb-1.5 text-sm"
+                    >
                       Contraseña <span className="text-[#DC2626]">*</span>
                     </label>
-                    <input id="uf-password" type="password" value={form.password}
-                      onChange={(e) => { setForm((p) => ({ ...p, password: e.target.value })); setErrors((p) => ({ ...p, password: "" })); }}
+                    <input
+                      id="uf-password"
+                      type="password"
+                      value={form.password}
+                      onChange={(e) => {
+                        setForm((p) => ({ ...p, password: e.target.value }));
+                        setErrors((p) => ({ ...p, password: "" }));
+                      }}
                       className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] text-sm ${errors.password ? "border-[#DC2626]" : "border-[#E2E8F0]"}`}
-                      placeholder="Mínimo 6 caracteres" />
-                    {errors.password && <p className="text-[#DC2626] text-xs mt-1">{errors.password}</p>}
+                      placeholder="Mínimo 6 caracteres"
+                    />
+                    {errors.password && (
+                      <p className="text-[#DC2626] text-xs mt-1">
+                        {errors.password}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
 
               <div className="flex gap-3 mt-6">
-                <button onClick={() => setShowForm(false)}
-                  className="flex-1 px-4 py-3 border border-[#E2E8F0] text-[#334155] rounded-xl hover:bg-[#F8FAFC] transition-colors text-sm">
+                <button
+                  onClick={() => setShowForm(false)}
+                  className="flex-1 px-4 py-3 border border-[#E2E8F0] text-[#334155] rounded-xl hover:bg-[#F8FAFC] transition-colors text-sm"
+                >
                   Cancelar
                 </button>
-                <button onClick={handleSave}
-                  className="flex-1 px-4 py-3 bg-[#2563EB] text-white rounded-xl hover:bg-[#1E3A8A] transition-colors text-sm">
+                <button
+                  onClick={handleSave}
+                  className="flex-1 px-4 py-3 bg-[#2563EB] text-white rounded-xl hover:bg-[#1E3A8A] transition-colors text-sm"
+                >
                   {editingId ? "Guardar Cambios" : "Crear Usuario"}
                 </button>
               </div>
@@ -489,8 +657,11 @@ function AdminContent() {
       {/* Delete confirm */}
       <AnimatePresence>
         {deleteId && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            role="alertdialog" aria-modal="true">
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            role="alertdialog"
+            aria-modal="true"
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -500,7 +671,9 @@ function AdminContent() {
               <div className="w-12 h-12 bg-[#FEF2F2] rounded-xl flex items-center justify-center mx-auto mb-4">
                 <Trash2 className="w-6 h-6 text-[#DC2626]" aria-hidden="true" />
               </div>
-              <h3 className="text-[#0F172A] text-center mb-2">¿Eliminar usuario?</h3>
+              <h3 className="text-[#0F172A] text-center mb-2">
+                ¿Eliminar usuario?
+              </h3>
               <p className="text-[#64748B] text-sm text-center mb-6">
                 Esta acción eliminará a{" "}
                 <strong className="text-[#0F172A]">
@@ -509,12 +682,16 @@ function AdminContent() {
                 permanentemente.
               </p>
               <div className="flex gap-3">
-                <button onClick={() => setDeleteId(null)}
-                  className="flex-1 px-4 py-3 border border-[#E2E8F0] text-[#334155] rounded-xl hover:bg-[#F8FAFC] transition-colors text-sm">
+                <button
+                  onClick={() => setDeleteId(null)}
+                  className="flex-1 px-4 py-3 border border-[#E2E8F0] text-[#334155] rounded-xl hover:bg-[#F8FAFC] transition-colors text-sm"
+                >
                   Cancelar
                 </button>
-                <button onClick={handleDelete}
-                  className="flex-1 px-4 py-3 bg-[#DC2626] text-white rounded-xl hover:bg-[#B91C1C] transition-colors text-sm">
+                <button
+                  onClick={handleDelete}
+                  className="flex-1 px-4 py-3 bg-[#DC2626] text-white rounded-xl hover:bg-[#B91C1C] transition-colors text-sm"
+                >
                   Eliminar
                 </button>
               </div>

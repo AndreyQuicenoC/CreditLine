@@ -8,3 +8,9 @@ supabase==2.4.4
 requests==2.32.3
 PyJWT==2.12.1
 cryptography==42.0.8
+
+# Testing
+pytest==7.4.3
+pytest-django==4.7.0
+pytest-cov==4.1.0
+

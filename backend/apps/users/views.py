@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from django.utils import timezone
 import jwt
+import re
 from django.conf import settings
 from apps.users.models import UserProfile
 from apps.users.serializers import UserProfileSerializer, UserLoginResponseSerializer
@@ -41,85 +42,48 @@ def login(request):
 
         if not email or not password:
             logger.warning("Login attempt without email or password")
-            return Response(
-                {'error': 'Email and password are required'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({'error': 'Email and password are required'}, status=status.HTTP_400_BAD_REQUEST)
 
-        logger.info(f"Login attempt for email: {email}")
-
-        # Find user by email
-        profile = UserProfile.objects.filter(email=email).first()
-
-        if not profile:
-            logger.warning(f"Login failed: user not found for email={email}")
-            return Response(
-                {'error': 'Credenciales incorrectas. Verifica tu correo y contraseña.'},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
-
-        if not profile.is_active:
-            logger.warning(f"Login failed: inactive user for email={email}")
-            return Response(
-                {'error': 'User account is inactive'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        # Simple password comparison for testing
-        # In production, use Supabase Auth which handles password verification
-        import os
-        from dotenv import load_dotenv
-
-        # Load mock credentials from database
-        # Check password (for testing, stored as plain text in mock_auth_users)
+        # Check mock_auth_users for stored password (tests store plaintext for simplicity)
         try:
-            import psycopg2
             from django.db import connection
-
             with connection.cursor() as cursor:
-                cursor.execute(
-                    "SELECT encrypted_password FROM mock_auth_users WHERE email = %s;",
-                    [email]
-                )
+                cursor.execute("SELECT encrypted_password FROM mock_auth_users WHERE email = %s;", [email])
                 row = cursor.fetchone()
-                if not row or row[0] != password:
-                    logger.warning(f"Login failed: invalid password for email={email}")
-                    return Response(
-                        {'error': 'Credenciales incorrectas. Verifica tu correo y contraseña.'},
-                        status=status.HTTP_401_UNAUTHORIZED
-                    )
         except Exception as e:
-            logger.error(f"Password check error: {str(e)}")
-            # Fallback to simple comparison
-            if password != 'admin123' and password != 'operario123':
-                logger.warning(f"Login failed: invalid password for email={email} (fallback)")
-                return Response(
-                    {'error': 'Credenciales incorrectas. Verifica tu correo y contraseña.'},
-                    status=status.HTTP_401_UNAUTHORIZED
-                )
+            logger.error(f"Error reading mock_auth_users: {e}")
+            return Response({'error': 'Internal server error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        # Update last access
+        if not row:
+            logger.warning(f"Login failed: no auth record for email={email}")
+            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        stored_password = row[0]
+        if password != stored_password:
+            logger.warning(f"Login failed: invalid password for email={email}")
+            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        # Fetch user profile by email
+        try:
+            profile = UserProfile.objects.get(email=email)
+        except UserProfile.DoesNotExist:
+            logger.warning(f"UserProfile not found for email={email}")
+            return Response({'error': 'User profile not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Update last access and return token
         profile.update_last_access()
-
-        # Generate JWT token
         token = generate_jwt_token(str(profile.auth_id), profile.email)
         logger.info(f"Login successful for user={email}, role={profile.rol}")
-
-        # Return user data + token
         response_data = {
             'user': UserProfileSerializer(profile).data,
             'token': token,
-            'message': 'Sesión iniciada correctamente'
+            'message': 'Login successful'
         }
-
         return Response(response_data, status=status.HTTP_200_OK)
 
     except Exception as e:
         logger.error(f"Login error: {str(e)}")
-        return Response(
-            {'error': 'Internal server error'},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        return Response({'error': 'Internal server error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['GET'])
@@ -198,6 +162,59 @@ def update_profile(request):
         )
     except Exception as e:
         logger.error(f"Error updating profile: {str(e)}")
+        return Response(
+            {'error': 'Internal server error'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def edit_user(request, user_id):
+    """
+    Edit another user's profile (admin only).
+
+    Allows admin to update nombre and rol of another user.
+    """
+    try:
+        admin_id = request.user.id
+
+        if not admin_id:
+            return Response(
+                {'error': 'Invalid authentication'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        # Check if user is admin
+        admin_profile = UserProfile.objects.get(auth_id=admin_id)
+        if not admin_profile.is_admin:
+            logger.warning(f"edit_user: unauthorized access attempt by user={admin_id}")
+            return Response(
+                {'error': 'Only admins can edit users'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Get the user to edit
+        target_profile = UserProfile.objects.get(auth_id=user_id)
+
+        # Only allow updating nombre and rol
+        allowed_fields = ['nombre', 'rol']
+        data = {k: v for k, v in request.data.items() if k in allowed_fields}
+
+        serializer = UserProfileSerializer(target_profile, data=data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            logger.info(f"edit_user: admin={admin_profile.email} edited user={target_profile.email}")
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    except UserProfile.DoesNotExist:
+        return Response(
+            {'error': 'User profile not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        logger.error(f"Error editing user: {str(e)}")
         return Response(
             {'error': 'Internal server error'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -288,10 +305,9 @@ def create_user(request):
             errors['nombre'] = 'El nombre es requerido'
         if not email:
             errors['email'] = 'El correo es requerido'
-        elif not (r'^[^\s@]+@[^\s@]+\.[^\s@]+$', email):
-            # Simple email validation
-            if '@' not in email or '.' not in email:
-                errors['email'] = 'Correo inválido'
+        elif not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', email):
+            # Validate email format
+            errors['email'] = 'Correo inválido'
         if not rol:
             errors['rol'] = 'El rol es requerido'
         elif rol not in ['ADMIN', 'OPERARIO']:
@@ -302,6 +318,7 @@ def create_user(request):
             errors['password'] = 'La contraseña debe tener al menos 6 caracteres'
 
         if errors:
+            logger.warning(f"create_user validation failed: {errors}")
             return Response(errors, status=status.HTTP_400_BAD_REQUEST)
 
         # Check if email already exists
@@ -315,6 +332,21 @@ def create_user(request):
         import uuid
         new_auth_id = uuid.uuid4()
 
+        # Ensure generated auth_id does not collide with existing user_profiles.auth_id
+        try:
+            # Loop a few times to avoid rare UUID collisions
+            attempts = 0
+            while UserProfile.objects.filter(auth_id=new_auth_id).exists() and attempts < 5:
+                new_auth_id = uuid.uuid4()
+                attempts += 1
+            if UserProfile.objects.filter(auth_id=new_auth_id).exists():
+                # As a last resort, return an error to avoid infinite loop/race
+                logger.error(f"Unable to generate unique auth_id after {attempts} attempts: {new_auth_id}")
+                return Response({'error': 'Error generating unique user id'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception:
+            # If DB check fails for any reason, continue — the trigger/DB will validate
+            logger.exception('Error checking existing auth_id uniqueness')
+
         user_profile = UserProfile.objects.create(
             auth_id=new_auth_id,
             nombre=nombre,
@@ -327,20 +359,28 @@ def create_user(request):
         try:
             from django.db import connection
             with connection.cursor() as cursor:
+                # First delete if exists (shouldn't happen but just in case)
+                cursor.execute(
+                    "DELETE FROM mock_auth_users WHERE email = %s;",
+                    [email]
+                )
+                # Now insert the new password into mock_auth_users using auth_id
                 cursor.execute(
                     """
                     INSERT INTO mock_auth_users (auth_id, email, encrypted_password)
-                    VALUES (%s, %s, %s)
-                    ON CONFLICT (email) DO NOTHING;
+                    VALUES (%s, %s, %s);
                     """,
                     [str(new_auth_id), email, password]
                 )
+                logger.info(f"Password stored for new user {email}")
         except Exception as e:
-            logger.error(f"Error storing password: {str(e)}")
+            logger.error(f"Error storing password: {str(e)} | Exception type: {type(e).__name__} | Full traceback:")
+            import traceback
+            logger.error(traceback.format_exc())
             # Delete the created profile if password storage fails
             user_profile.delete()
             return Response(
-                {'error': 'Error al crear el usuario. Por favor intenta de nuevo.'},
+                {'error': f'Error al crear el usuario: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -529,47 +569,52 @@ def update_system_config(request):
                 errors['impuesto_retraso'] = 'El impuesto debe ser un número válido'
 
         if errors:
+            logger.warning(f"update_system_config validation failed: {errors}")
             return Response(errors, status=status.HTTP_400_BAD_REQUEST)
 
         from django.db import connection
         with connection.cursor() as cursor:
-            # Update or insert configuration
-            cursor.execute(
-                """
-                INSERT INTO system_config (tasa_interes, impuesto_retraso, updated_by)
-                VALUES (
-                    COALESCE(%s, 10.0),
-                    COALESCE(%s, 5.0),
-                    %s
-                )
-                ON CONFLICT DO NOTHING;
-                """,
-                [tasa_interes, impuesto_retraso, user_id]
-            )
-
-            if tasa_interes is not None or impuesto_retraso is not None:
-                update_fields = []
-                update_values = []
-
-                if tasa_interes is not None:
-                    update_fields.append('tasa_interes = %s')
-                    update_values.append(tasa_interes)
-                if impuesto_retraso is not None:
-                    update_fields.append('impuesto_retraso = %s')
-                    update_values.append(impuesto_retraso)
-
-                update_fields.append('updated_by = %s')
-                update_values.append(user_id)
-
+            # Check if system_config exists, if not create one
+            cursor.execute("SELECT COUNT(*) FROM system_config;")
+            count = cursor.fetchone()[0]
+            
+            if count == 0:
+                # Create initial config (without updated_by to avoid FK constraint issues)
                 cursor.execute(
-                    f"""
-                    UPDATE system_config
-                    SET {', '.join(update_fields)}
-                    LIMIT 1;
+                    """
+                    INSERT INTO system_config (tasa_interes, impuesto_retraso)
+                    VALUES (%s, %s);
                     """,
-                    update_values
+                    [tasa_interes or 10.0, impuesto_retraso or 5.0]
                 )
+                logger.info(f"Created system config by user {user_id}")
+            else:
+                # Update existing config
+                if tasa_interes is not None or impuesto_retraso is not None:
+                    update_fields = []
+                    update_values = []
 
+                    if tasa_interes is not None:
+                        update_fields.append('tasa_interes = %s')
+                        update_values.append(tasa_interes)
+                    if impuesto_retraso is not None:
+                        update_fields.append('impuesto_retraso = %s')
+                        update_values.append(impuesto_retraso)
+
+                    # Note: Not updating updated_by to avoid FK constraint issues
+                    # (updated_by can be NULL, we just track the values)
+
+                    if update_fields:  # Only execute if there are fields to update
+                        cursor.execute(
+                            f"""
+                            UPDATE system_config
+                            SET {', '.join(update_fields)};
+                            """,
+                            update_values
+                        )
+                        logger.info(f"Updated system config by user {user_id}")
+
+            # Fetch the current config
             cursor.execute(
                 """
                 SELECT tasa_interes, impuesto_retraso
@@ -591,8 +636,10 @@ def update_system_config(request):
             status=status.HTTP_404_NOT_FOUND
         )
     except Exception as e:
-        logger.error(f"Error updating system config: {str(e)}")
+        logger.error(f"Error updating system config: {str(e)} | Exception type: {type(e).__name__}")
+        import traceback
+        logger.error(traceback.format_exc())
         return Response(
-            {'error': 'Internal server error'},
+            {'error': f'Internal server error: {str(e)}'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
