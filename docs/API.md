@@ -15,6 +15,7 @@ Authorization: Bearer <supabase_jwt_token>
 ### Users
 
 #### Get User Profile
+
 - **Endpoint**: `GET /users/profile/`
 - **Description**: Get the authenticated user's profile
 - **Authentication**: Required (Bearer token)
@@ -35,6 +36,7 @@ Authorization: Bearer <supabase_jwt_token>
 ```
 
 **Status Codes**:
+
 - `200 OK` - Profile retrieved successfully
 - `401 Unauthorized` - Invalid or missing token
 - `404 Not Found` - User profile not found
@@ -42,6 +44,7 @@ Authorization: Bearer <supabase_jwt_token>
 ---
 
 #### Update User Profile
+
 - **Endpoint**: `PUT /users/profile/update/`
 - **Description**: Update the authenticated user's profile
 - **Authentication**: Required (Bearer token)
@@ -58,6 +61,7 @@ Authorization: Bearer <supabase_jwt_token>
 - **Response**: Same as Get Profile (updated data)
 
 **Status Codes**:
+
 - `200 OK` - Profile updated successfully
 - `400 Bad Request` - Invalid data
 - `401 Unauthorized` - Invalid or missing token
@@ -66,6 +70,7 @@ Authorization: Bearer <supabase_jwt_token>
 ---
 
 #### List All Users
+
 - **Endpoint**: `GET /users/list/`
 - **Description**: List all users (admin only)
 - **Authentication**: Required (Bearer token, admin role)
@@ -88,6 +93,7 @@ Authorization: Bearer <supabase_jwt_token>
 ```
 
 **Status Codes**:
+
 - `200 OK` - List retrieved successfully
 - `401 Unauthorized` - Invalid or missing token
 - `403 Forbidden` - User is not admin
@@ -106,6 +112,7 @@ All error responses follow this format:
 ```
 
 **Common Status Codes**:
+
 - `400 Bad Request` - Invalid request data
 - `401 Unauthorized` - Missing or invalid authentication
 - `403 Forbidden` - User lacks permission for this action
@@ -134,6 +141,7 @@ All error responses follow this format:
 ## Rate Limiting
 
 Currently no rate limiting implemented. Future versions will include:
+
 - Per-user rate limits (to prevent abuse)
 - Per-IP rate limits (to prevent DoS attacks)
 
@@ -142,6 +150,7 @@ Currently no rate limiting implemented. Future versions will include:
 ## CORS
 
 CORS is enabled for development. Allowed origins:
+
 - `http://localhost:5173`
 - `http://127.0.0.1:5173`
 
@@ -160,30 +169,33 @@ No versioning prefix in URLs yet. Future versions may use `/api/v1/` pattern.
 ## Examples
 
 ### Login and Get Profile (JavaScript)
-```javascript
-import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(URL, KEY)
+```javascript
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(URL, KEY);
 
 // Login
 const { data, error } = await supabase.auth.signInWithPassword({
-  email: 'admin@creditline.com',
-  password: 'admin123'
-})
+  email: "admin@creditline.com",
+  password: "admin123",
+});
 
 // Get JWT token from session
-const { data: { session } } = await supabase.auth.getSession()
-const token = session?.access_token
+const {
+  data: { session },
+} = await supabase.auth.getSession();
+const token = session?.access_token;
 
 // Fetch profile
-const response = await fetch('http://localhost:8000/api/users/profile/', {
+const response = await fetch("http://localhost:8000/api/users/profile/", {
   headers: {
-    'Authorization': `Bearer ${token}`
-  }
-})
+    Authorization: `Bearer ${token}`,
+  },
+});
 
-const profile = await response.json()
-console.log(profile)
+const profile = await response.json();
+console.log(profile);
 ```
 
 ---

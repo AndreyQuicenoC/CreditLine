@@ -16,10 +16,10 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../../context/AuthContext";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
-import { Tooltip } from "../ui/Tooltip";
+import { Tooltip } from "../../ui/ui/tooltip";
 
 export function Navbar() {
   const location = useLocation();

@@ -5,34 +5,41 @@ This directory contains utility scripts for setup, seeding, and maintenance.
 ## Scripts
 
 ### `init_supabase.sql`
+
 SQL script to initialize Supabase database structure.
 
 **Usage**:
+
 1. Go to Supabase Dashboard → SQL Editor
 2. Create a new query
 3. Copy and paste the contents of `init_supabase.sql`
 4. Click "Run"
 
 **Creates**:
+
 - `user_profiles` table (custom user metadata)
 - Indexes for performance
 - Trigger to auto-create profiles on auth sign-up
 - RLS policies for security
 
 ### `seed_auth.py`
+
 Python script to seed initial users in Supabase Auth.
 
 **Prerequisites**:
+
 - Python 3.10+
 - `.env.local` file with `SUPABASE_SERVICE_ROLE_KEY`
 
 **Usage**:
+
 ```bash
 cd backend
 python ../scripts/seed_auth.py
 ```
 
 **Creates**:
+
 - admin@creditline.com / admin123 (ADMIN role)
 - operario@creditline.com / operario123 (OPERARIO role)
 

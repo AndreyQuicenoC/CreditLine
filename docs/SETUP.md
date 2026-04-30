@@ -13,6 +13,7 @@ Step-by-step instructions to set up CreditLine locally.
 - **Text Editor**: VS Code, PyCharm, or similar
 
 ### Check Versions
+
 ```bash
 python --version      # Should be 3.10+
 node --version        # Should be 18+
@@ -73,6 +74,7 @@ cp .env.example .env.local
 ```
 
 Edit `.env.local` and fill in:
+
 ```
 SUPABASE_URL=https://your-project-id.supabase.co
 SUPABASE_ANON_KEY=your_anon_key_here
@@ -117,6 +119,7 @@ python ../scripts/seed_auth.py
 ```
 
 You should see:
+
 ```
 🚀 Starting CreditLine database seeding...
 
@@ -142,6 +145,7 @@ python manage.py runserver
 ```
 
 You should see:
+
 ```
 Django version 4.2.13, using settings 'creditline.settings'
 Starting development server at http://127.0.0.1:8000/
@@ -168,6 +172,7 @@ cp ../.env.local .env.local
 ```
 
 Verify it contains:
+
 ```
 VITE_SUPABASE_URL=https://your-project-id.supabase.co
 VITE_SUPABASE_ANON_KEY=your_anon_key_here
@@ -189,6 +194,7 @@ npm run dev
 ```
 
 You should see:
+
 ```
   VITE v6.3.5  ready in 123 ms
 
@@ -237,12 +243,14 @@ Should return user profile data.
 ### 6.2 Check Supabase
 
 Go to Supabase console:
+
 1. **Table Editor** → `user_profiles`
 2. Should see 2 rows (admin and operario)
 
 ### 6.3 Check Browser Console
 
 Frontend should show:
+
 - No CORS errors
 - Successful API calls to backend
 - JWT token in Supabase session
@@ -252,7 +260,9 @@ Frontend should show:
 ## Troubleshooting
 
 ### Issue: "Module not found: django"
+
 **Solution**: Activate virtual environment
+
 ```bash
 source venv/bin/activate  # macOS/Linux
 # or
@@ -260,25 +270,33 @@ venv\Scripts\activate  # Windows
 ```
 
 ### Issue: "SUPABASE_SERVICE_ROLE_KEY not set"
+
 **Solution**: Add to `.env.local`
+
 ```
 SUPABASE_SERVICE_ROLE_KEY=your_key_here
 ```
 
 ### Issue: "Connection refused: :5173"
+
 **Solution**: Frontend not running. Run `npm run dev` in frontend folder.
 
 ### Issue: "Connection refused: :8000"
+
 **Solution**: Backend not running. Run `python manage.py runserver` in backend folder.
 
 ### Issue: "CORS error in browser"
+
 **Solution**: Check `CORS_ALLOWED_ORIGINS` in `backend/creditline/settings.py`
+
 ```python
 CORS_ALLOWED_ORIGINS = ['http://localhost:5173']  # Add if missing
 ```
 
 ### Issue: "Users not seeding"
+
 **Solution**: Check Supabase credentials in `.env.local`
+
 ```bash
 echo $SUPABASE_URL
 echo $SUPABASE_SERVICE_ROLE_KEY
@@ -291,6 +309,7 @@ echo $SUPABASE_SERVICE_ROLE_KEY
 ### Running Locally (3 Terminals)
 
 **Terminal 1 - Backend**:
+
 ```bash
 cd backend
 source venv/bin/activate
@@ -298,12 +317,14 @@ python manage.py runserver
 ```
 
 **Terminal 2 - Frontend**:
+
 ```bash
 cd frontend
 npm run dev
 ```
 
 **Terminal 3 - Utilities/Git** (as needed):
+
 ```bash
 cd CreditLine
 git status

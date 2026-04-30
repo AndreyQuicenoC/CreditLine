@@ -1,10 +1,10 @@
-import { BrowserRouter } from 'react-router'
-import { useAuth } from './context/AuthContext'
-import Routes from './routes'
-import { Toaster } from 'sonner'
+import { BrowserRouter } from "react-router";
+import { useAuth } from "./context/AuthContext";
+import Routes from "./routes";
+import { Toaster } from "sonner";
 
 export default function App() {
-  const { loading } = useAuth()
+  const { loading } = useAuth();
 
   if (loading) {
     return (
@@ -14,7 +14,7 @@ export default function App() {
           <p className="text-[#64748B]">Cargando...</p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -22,5 +22,5 @@ export default function App() {
       <Routes />
       <Toaster position="top-right" />
     </BrowserRouter>
-  )
+  );
 }

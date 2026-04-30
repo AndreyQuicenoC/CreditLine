@@ -15,14 +15,14 @@ CreditLine uses PostgreSQL (via Supabase) as the primary data store.
 
 Managed by Supabase Auth. Stores authentication credentials.
 
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | UUID | User ID (primary key) |
-| `email` | VARCHAR | Email address (unique) |
-| `encrypted_password` | VARCHAR | Hashed password (bcrypt/pbkdf2) |
-| `email_confirmed_at` | TIMESTAMP | Email confirmation timestamp |
-| `created_at` | TIMESTAMP | Account creation time |
-| `updated_at` | TIMESTAMP | Last update time |
+| Column               | Type      | Description                     |
+| -------------------- | --------- | ------------------------------- |
+| `id`                 | UUID      | User ID (primary key)           |
+| `email`              | VARCHAR   | Email address (unique)          |
+| `encrypted_password` | VARCHAR   | Hashed password (bcrypt/pbkdf2) |
+| `email_confirmed_at` | TIMESTAMP | Email confirmation timestamp    |
+| `created_at`         | TIMESTAMP | Account creation time           |
+| `updated_at`         | TIMESTAMP | Last update time                |
 
 **Note**: Passwords are NEVER readable; always hashed. Authentication is handled entirely by Supabase Auth.
 
@@ -32,25 +32,27 @@ Managed by Supabase Auth. Stores authentication credentials.
 
 Custom metadata for users. Created by trigger when user signs up.
 
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| `id` | UUID | PRIMARY KEY | Profile ID |
-| `auth_id` | UUID | UNIQUE, FK auth.users(id) | Reference to auth user |
-| `email` | VARCHAR(255) | NOT NULL | Email (copy from auth) |
-| `nombre` | VARCHAR(255) | NOT NULL | User's full name |
-| `rol` | VARCHAR(50) | DEFAULT 'OPERARIO', CHECK (ADMIN\|OPERARIO) | User role |
-| `is_active` | BOOLEAN | DEFAULT true | Account active status |
-| `ultimo_acceso` | TIMESTAMP | NULL | Last login time |
-| `created_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Record creation time |
-| `updated_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Record update time |
+| Column          | Type         | Constraints                                 | Description            |
+| --------------- | ------------ | ------------------------------------------- | ---------------------- |
+| `id`            | UUID         | PRIMARY KEY                                 | Profile ID             |
+| `auth_id`       | UUID         | UNIQUE, FK auth.users(id)                   | Reference to auth user |
+| `email`         | VARCHAR(255) | NOT NULL                                    | Email (copy from auth) |
+| `nombre`        | VARCHAR(255) | NOT NULL                                    | User's full name       |
+| `rol`           | VARCHAR(50)  | DEFAULT 'OPERARIO', CHECK (ADMIN\|OPERARIO) | User role              |
+| `is_active`     | BOOLEAN      | DEFAULT true                                | Account active status  |
+| `ultimo_acceso` | TIMESTAMP    | NULL                                        | Last login time        |
+| `created_at`    | TIMESTAMP    | DEFAULT CURRENT_TIMESTAMP                   | Record creation time   |
+| `updated_at`    | TIMESTAMP    | DEFAULT CURRENT_TIMESTAMP                   | Record update time     |
 
 **Indexes**:
+
 - `idx_user_profiles_auth_id` on `auth_id` (primary lookup)
 - `idx_user_profiles_email` on `email` (email search)
 - `idx_user_profiles_rol` on `rol` (role filtering)
 - `idx_user_profiles_created_at` on `created_at` (date filtering)
 
 **RLS Policies** (Row Level Security):
+
 - Users can view only their own profile
 - Admins can view all profiles
 - Users can update only their own profile
@@ -67,6 +69,7 @@ auth.users (1) ──── (1) user_profiles
 ```
 
 When a user signs up in Supabase Auth:
+
 1. Record created in `auth.users` with email and hashed password
 2. Trigger `on_auth_user_created` fires automatically
 3. New record created in `user_profiles` with profile data
@@ -77,17 +80,21 @@ When a user signs up in Supabase Auth:
 ## Constraints
 
 ### Primary Key
+
 - `user_profiles.id`: UUID, generated automatically
 - `user_profiles.auth_id`: UNIQUE (one-to-one with auth.users)
 
 ### Foreign Key
+
 - `user_profiles.auth_id` → `auth.users.id` (CASCADE DELETE)
   - If user deleted from auth, profile is automatically deleted
 
 ### Check Constraint
+
 - `user_profiles.rol`: Must be 'ADMIN' or 'OPERARIO'
 
 ### Unique Constraint
+
 - `user_profiles.auth_id`: Each user has exactly one profile
 - `user_profiles.email`: Email is unique (no duplicate accounts)
 
@@ -116,24 +123,29 @@ INSERT INTO user_profiles (
 ## Future Tables (Planned)
 
 ### Clientes (Clients)
+
 - Track client information
 - Link to user_profiles (managed by)
 
 ### Municipios (Municipalities)
+
 - Lookup table for municipalities
 - Referenced by Clientes
 
 ### Deudas (Debts/Loans)
+
 - Loan records
 - Linked to Clientes
 - Track principal, interest, status
 
 ### Abonos (Payments)
+
 - Payment records
 - Linked to Deudas
 - Track payment amount, date, status
 
 ### Historial (History)
+
 - Audit trail for all changes
 - Track who changed what, when
 
@@ -142,6 +154,7 @@ INSERT INTO user_profiles (
 ## Data Integrity
 
 ### Enforced At Database Level
+
 - ✓ Primary key uniqueness
 - ✓ Foreign key constraints (CASCADE DELETE)
 - ✓ Check constraints (rol IN ADMIN|OPERARIO)
@@ -149,6 +162,7 @@ INSERT INTO user_profiles (
 - ✓ NOT NULL constraints
 
 ### Enforced At Application Level
+
 - ✓ Email format validation (RFC 5322)
 - ✓ Business logic validation (DJ ORM serializers)
 - ✓ Authorization (user can only access own data)
@@ -181,6 +195,7 @@ INSERT INTO user_profiles (
 Currently, all schema is created via `init_supabase.sql`.
 
 For future changes:
+
 1. SQL script placed in `scripts/migrations/`
 2. Version numbered: `001_initial_schema.sql`
 3. Run manually in Supabase SQL Editor or via pipeline
@@ -191,11 +206,13 @@ For future changes:
 
 **Scenario**: Accidental data deletion  
 **Recovery Steps**:
+
 1. Notify Supabase support
 2. Request point-in-time recovery
 3. Restore to backup timestamp
 
 **Prevention**:
+
 - Database backups enabled
 - RLS prevents unauthorized access
 - Audit trail (planned) tracks changes

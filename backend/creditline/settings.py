@@ -127,6 +127,7 @@ CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS',
 )
 
 CORS_ALLOW_CREDENTIALS = True
+
 CORS_ALLOW_HEADERS = [
     'accept',
     'accept-encoding',
@@ -138,6 +139,25 @@ CORS_ALLOW_HEADERS = [
     'x-csrftoken',
     'x-requested-with',
 ]
+
+CORS_EXPOSE_HEADERS = [
+    'content-type',
+    'authorization',
+    'x-total-count',
+    'x-page-count',
+]
+
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'HEAD',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
 
 # Supabase Configuration
 SUPABASE_URL = config('SUPABASE_URL', default='https://cnlapwhaumnxphdsqtjn.supabase.co')

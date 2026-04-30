@@ -1,7 +1,7 @@
 import { Outlet, Navigate, useLocation } from "react-router";
-import { Navbar } from "../navigation/Navbar";
-import { Footer } from "../Footer";
-import { useAuth } from "../../context/AuthContext";
+import { Navbar } from "../../navigation/navigation/Navbar";
+import { Footer } from "../../Footer";
+import { useAuth } from "../../../context/AuthContext";
 
 export function RootLayout() {
   const { isAuthenticated, user } = useAuth();

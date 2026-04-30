@@ -21,12 +21,14 @@ CreditLine is a comprehensive loan management system designed for financial inst
 ## Tech Stack
 
 ### Backend
+
 - **Framework**: Django 4.2+ with Django REST Framework
 - **Database**: PostgreSQL (via Supabase)
 - **Authentication**: Supabase Auth (native JWT)
 - **Deployment**: Docker-ready
 
 ### Frontend
+
 - **Framework**: React 18 with TypeScript
 - **Build Tool**: Vite
 - **UI Components**: Shadcn/ui
@@ -35,6 +37,7 @@ CreditLine is a comprehensive loan management system designed for financial inst
 - **Animations**: Motion
 
 ### Infrastructure
+
 - **Database**: Supabase (managed PostgreSQL)
 - **Authentication**: Supabase Auth
 - **Version Control**: Git / GitHub
@@ -79,6 +82,7 @@ CreditLine/
 ## Quick Start
 
 ### Prerequisites
+
 - Python 3.10+
 - Node.js 18+
 - Git
@@ -87,6 +91,7 @@ CreditLine/
 ### Setup
 
 #### 1. Clone and Setup Environment
+
 ```bash
 git clone https://github.com/AndreyQuicenoC/CreditLine.git
 cd CreditLine
@@ -101,9 +106,11 @@ cp .env.example .env.local
 ```
 
 #### 2. Database Setup (Supabase Console)
+
 See `docs/SETUP.md` for step-by-step Supabase configuration.
 
 #### 3. Backend Setup
+
 ```bash
 cd backend
 
@@ -127,6 +134,7 @@ python manage.py runserver 0.0.0.0:8000
 **Backend available at**: `http://localhost:8000`
 
 #### 4. Frontend Setup
+
 ```bash
 cd frontend
 
@@ -143,6 +151,7 @@ npm run dev
 **Frontend available at**: `http://localhost:5173`
 
 #### 5. Test Login
+
 - Navigate to `http://localhost:5173/login`
 - Login with:
   - **Admin**: admin@creditline.com / admin123
@@ -164,6 +173,7 @@ npm run dev
 ### Running Locally
 
 **Terminal 1 - Backend**:
+
 ```bash
 cd backend
 source venv/bin/activate
@@ -171,6 +181,7 @@ python manage.py runserver
 ```
 
 **Terminal 2 - Frontend**:
+
 ```bash
 cd frontend
 npm run dev
@@ -189,11 +200,13 @@ npm run dev
 ## Git Workflow
 
 ### Main Branch
+
 - Stable, production-ready code
 - Protected: requires PR review
 - Changes via pull requests only
 
 ### Feature Branches
+
 - `feature/admin-section` - Admin dashboard and management
 - `feature/operation-section` - Operator portal and workflows
 - `feature/*` - Individual feature branches
@@ -235,6 +248,7 @@ All rights reserved © ClustLayer. Unauthorized reproduction or distribution is 
 ## Changelog
 
 ### v0.1.0 (Initial Release)
+
 - ✓ Project structure
 - ✓ User authentication (ADMIN / OPERARIO roles)
 - ✓ Login page with validation

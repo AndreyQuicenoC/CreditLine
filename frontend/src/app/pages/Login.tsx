@@ -27,14 +27,14 @@ export function Login() {
     if (!validate()) return;
     setLoading(true);
     await new Promise((r) => setTimeout(r, 600));
-    const result = login(email.trim(), password);
+    const result = await login(email.trim(), password);
     setLoading(false);
     if (result.success) {
       toast.success("Sesión iniciada correctamente", {
         description: "Bienvenido a CreditLine.",
       });
-      // Get the user from session storage to check role
-      const stored = sessionStorage.getItem("creditline_user");
+      // Get the user from localStorage to check role
+      const stored = localStorage.getItem("creditline_user");
       const u = stored ? JSON.parse(stored) : null;
       if (u?.rol === "ADMIN") {
         navigate("/administracion");
