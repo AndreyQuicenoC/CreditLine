@@ -1,8 +1,10 @@
 import React from "react";
+// @ts-ignore: Ignore missing type declarations for react-dom/client
 import ReactDOM from "react-dom/client";
 import { AuthProvider } from "./app/context/AuthContext";
 import App from "./app/App";
-import "./styles/globals.css";
+// @ts-ignore: Ignore missing type declarations for CSS imports
+import "./styles/index.css";
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {
