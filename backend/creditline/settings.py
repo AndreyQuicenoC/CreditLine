@@ -73,6 +73,10 @@ DATABASES = {
         'PASSWORD': config('DATABASE_PASSWORD', default=''),
         'HOST': config('DATABASE_HOST', default='db.cnlapwhaumnxphdsqtjn.supabase.co'),
         'PORT': config('DATABASE_PORT', default='5432'),
+        'OPTIONS': {
+            'client_encoding': 'UTF8',
+        },
+        'CONN_MAX_AGE': 600,
     }
 }
 
