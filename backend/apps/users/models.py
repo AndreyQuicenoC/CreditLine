@@ -37,6 +37,7 @@ class UserProfile(models.Model):
         ordering = ['-created_at']
         verbose_name = _('User Profile')
         verbose_name_plural = _('User Profiles')
+        db_table = 'user_profiles'  # Use existing Supabase table
         indexes = [
             models.Index(fields=['auth_id']),
             models.Index(fields=['email']),

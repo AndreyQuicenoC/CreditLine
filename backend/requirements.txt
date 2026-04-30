@@ -6,5 +6,5 @@ python-dotenv==1.0.1
 psycopg2-binary==2.9.10
 supabase==2.4.4
 requests==2.32.3
-PyJWT==2.8.1
+PyJWT==2.12.1
 cryptography==42.0.8
