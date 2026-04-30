@@ -1,79 +1,88 @@
 import jwt
 import logging
 from django.conf import settings
-from rest_framework import status
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
+from jwt import ExpiredSignatureError, DecodeError
+
+from apps.users.models import UserProfile
 
 logger = logging.getLogger(__name__)
 
 
 class JWTAuthentication(BaseAuthentication):
     """
-    Custom JWT authentication backend for DRF.
-    Validates JWT tokens from Authorization header (Bearer token).
+    JWT authentication using HS256 signed tokens.
+    Validates Bearer tokens from Authorization header.
     """
 
     def authenticate(self, request):
-        """
-        Authenticate request using JWT token from Authorization header.
-        """
-        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        auth_header = request.META.get("HTTP_AUTHORIZATION", "")
 
         if not auth_header:
-            return None  # No authentication provided
+            return None
 
-        # Check if it's a Bearer token
-        if not auth_header.startswith('Bearer '):
+        if not auth_header.startswith("Bearer "):
             return None
 
         try:
-            token = auth_header.split(' ')[1]
+            token = auth_header.split(" ")[1]
         except IndexError:
-            raise AuthenticationFailed('Invalid Authorization header format')
+            raise AuthenticationFailed("Invalid Authorization header format")
 
         try:
-            # Decode JWT without signature verification (development mode)
-            # In production, verify with Supabase or other auth provider
+            # ✅ VERIFY SIGNATURE + EXPIRATION
             decoded = jwt.decode(
                 token,
-                options={"verify_signature": False}
+                settings.SECRET_KEY,
+                algorithms=["HS256"],
             )
 
-            user_id = decoded.get('sub')
-            email = decoded.get('email')
+            user_id = decoded.get("sub")
+            email = decoded.get("email")
 
-            if not user_id:
-                raise AuthenticationFailed('Invalid token: missing user ID')
+            if not user_id or not email:
+                logger.warning(f"JWT token missing required fields: user_id={user_id}, email={email}")
+                raise AuthenticationFailed("Invalid token payload")
 
-            # Create a simple user object for DRF
-            # This satisfies the IsAuthenticated permission class
-            user = JWTUser(user_id=user_id, email=email)
+            # OPTIONAL: validate user exists in DB
+            user_obj = UserProfile.objects.filter(auth_id=user_id).first()
+
+            if not user_obj:
+                logger.warning(f"UserProfile not found for auth_id={user_id}")
+                raise AuthenticationFailed("User not found")
+
+            logger.info(f"JWT authentication successful for user={user_obj.email}, role={user_obj.rol}")
+
+            user = JWTUser(
+                user_id=user_obj.auth_id,
+                email=user_obj.email,
+                role=user_obj.rol,
+            )
+
             return (user, token)
 
-        except jwt.DecodeError as e:
-            logger.error(f"JWT decode error: {str(e)}")
-            raise AuthenticationFailed('Invalid token')
-        except jwt.ExpiredSignatureError:
-            raise AuthenticationFailed('Token expired')
+        except ExpiredSignatureError:
+            logger.warning("JWT token expired")
+            raise AuthenticationFailed("Token expired")
+
+        except DecodeError as e:
+            logger.warning(f"JWT decode error: {str(e)}")
+            raise AuthenticationFailed("Invalid token")
+
         except Exception as e:
-            logger.error(f"Token validation error: {str(e)}")
-            raise AuthenticationFailed('Token validation failed')
+            logger.error(f"JWT authentication error: {str(e)}")
+            raise AuthenticationFailed("Authentication failed")
 
     def authenticate_header(self, request):
-        """Return authentication header name."""
-        return 'Bearer'
+        return "Bearer"
 
 
 class JWTUser:
-    """
-    Minimal user object for JWT authentication.
-    Satisfies DRF's IsAuthenticated permission requirements.
-    """
-
-    def __init__(self, user_id, email=None):
+    def __init__(self, user_id, email=None, role=None):
         self.id = user_id
         self.email = email
+        self.role = role
         self.is_authenticated = True
         self.is_active = True
 

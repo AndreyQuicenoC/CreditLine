@@ -57,21 +57,26 @@ def login(request):
         password = request.data.get('password', '').strip()
 
         if not email or not password:
+            logger.warning("Login attempt without email or password")
             return Response(
                 {'error': 'Email and password are required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        logger.info(f"Login attempt for email: {email}")
+
         # Find user by email
         profile = UserProfile.objects.filter(email=email).first()
 
         if not profile:
+            logger.warning(f"Login failed: user not found for email={email}")
             return Response(
                 {'error': 'Credenciales incorrectas. Verifica tu correo y contraseña.'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
         if not profile.is_active:
+            logger.warning(f"Login failed: inactive user for email={email}")
             return Response(
                 {'error': 'User account is inactive'},
                 status=status.HTTP_403_FORBIDDEN
@@ -95,6 +100,7 @@ def login(request):
                 )
                 row = cursor.fetchone()
                 if not row or row[0] != password:
+                    logger.warning(f"Login failed: invalid password for email={email}")
                     return Response(
                         {'error': 'Credenciales incorrectas. Verifica tu correo y contraseña.'},
                         status=status.HTTP_401_UNAUTHORIZED
@@ -103,6 +109,7 @@ def login(request):
             logger.error(f"Password check error: {str(e)}")
             # Fallback to simple comparison
             if password != 'admin123' and password != 'operario123':
+                logger.warning(f"Login failed: invalid password for email={email} (fallback)")
                 return Response(
                     {'error': 'Credenciales incorrectas. Verifica tu correo y contraseña.'},
                     status=status.HTTP_401_UNAUTHORIZED
@@ -113,6 +120,7 @@ def login(request):
 
         # Generate JWT token
         token = generate_jwt_token(str(profile.auth_id), profile.email)
+        logger.info(f"Login successful for user={email}, role={profile.rol}")
 
         # Return user data + token
         response_data = {
@@ -225,6 +233,7 @@ def list_users(request):
         user_id = get_user_id_from_token(request)
 
         if not user_id:
+            logger.warning("list_users: invalid token format")
             return Response(
                 {'error': 'Invalid token format'},
                 status=status.HTTP_401_UNAUTHORIZED
@@ -233,22 +242,25 @@ def list_users(request):
         # Check if user is admin
         profile = UserProfile.objects.get(auth_id=user_id)
         if not profile.is_admin:
+            logger.warning(f"list_users: unauthorized access attempt by user={user_id}")
             return Response(
                 {'error': 'Only admins can view user list'},
                 status=status.HTTP_403_FORBIDDEN
             )
 
         users = UserProfile.objects.all()
+        logger.info(f"list_users: admin={profile.email} fetched {users.count()} users")
         serializer = UserProfileSerializer(users, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     except UserProfile.DoesNotExist:
+        logger.warning(f"list_users: admin user not found for token")
         return Response(
             {'error': 'User profile not found'},
             status=status.HTTP_404_NOT_FOUND
         )
     except Exception as e:
-        logger.error(f"Error listing users: {str(e)}")
+        logger.error(f"list_users error: {str(e)}")
         return Response(
             {'error': 'Internal server error'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
