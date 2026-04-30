@@ -12,7 +12,10 @@ export function RootLayout() {
   }
 
   // Admin can only access /administracion
-  if (user?.rol === "ADMIN" && !location.pathname.startsWith("/administracion")) {
+  if (
+    user?.rol === "ADMIN" &&
+    !location.pathname.startsWith("/administracion")
+  ) {
     return <Navigate to="/administracion" replace />;
   }
 

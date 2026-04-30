@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { Mail, Lock, Eye, EyeOff, CreditCard, Shield, User } from "lucide-react";
+import {
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  CreditCard,
+  Shield,
+  User,
+} from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
 import { useAuth } from "../context/AuthContext";
@@ -12,7 +20,9 @@ export function Login() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>(
+    {},
+  );
 
   const validate = () => {
     const errs: { email?: string; password?: string } = {};
@@ -61,7 +71,10 @@ export function Login() {
   };
 
   return (
-    <div className="min-h-screen relative flex flex-col" style={{ background: "#EEF2FF" }}>
+    <div
+      className="min-h-screen relative flex flex-col"
+      style={{ background: "#EEF2FF" }}
+    >
       {/* Subtle background decoration */}
       <div
         className="absolute inset-0 pointer-events-none"
@@ -76,7 +89,9 @@ export function Login() {
       <div className="relative z-10 bg-white border-b border-[#E2E8F0] shadow-sm">
         <div className="max-w-[1400px] mx-auto px-4 lg:px-6 h-16 flex items-center gap-3">
           <CreditCard className="w-5 h-5 text-[#2563EB]" aria-hidden="true" />
-          <span className="text-[#1E3A8A] font-semibold text-xl tracking-tight">CreditLine</span>
+          <span className="text-[#1E3A8A] font-semibold text-xl tracking-tight">
+            CreditLine
+          </span>
           <span className="text-[#64748B] text-sm hidden sm:block">
             · Gestión de Préstamos Personales
           </span>
@@ -94,16 +109,30 @@ export function Login() {
           {/* Card */}
           <div className="bg-white rounded-2xl shadow-xl border border-[#E2E8F0] overflow-hidden">
             <div className="bg-gradient-to-r from-[#1E3A8A] to-[#2563EB] px-8 py-7">
-              <h1 className="text-white text-2xl font-semibold mb-1">Iniciar Sesión</h1>
-              <p className="text-blue-100 text-sm">Ingresa tus credenciales para continuar</p>
+              <h1 className="text-white text-2xl font-semibold mb-1">
+                Iniciar Sesión
+              </h1>
+              <p className="text-blue-100 text-sm">
+                Ingresa tus credenciales para continuar
+              </p>
             </div>
 
             <div className="px-8 py-7">
-              <form onSubmit={handleLogin} noValidate aria-label="Formulario de inicio de sesión">
+              <form
+                onSubmit={handleLogin}
+                noValidate
+                aria-label="Formulario de inicio de sesión"
+              >
                 {/* Email */}
                 <div className="mb-4">
-                  <label htmlFor="login-email" className="block text-[#334155] mb-1.5 text-sm">
-                    Correo electrónico <span className="text-[#DC2626]" aria-label="requerido">*</span>
+                  <label
+                    htmlFor="login-email"
+                    className="block text-[#334155] mb-1.5 text-sm"
+                  >
+                    Correo electrónico{" "}
+                    <span className="text-[#DC2626]" aria-label="requerido">
+                      *
+                    </span>
                   </label>
                   <div className="relative">
                     <Mail
@@ -116,7 +145,8 @@ export function Login() {
                       value={email}
                       onChange={(e) => {
                         setEmail(e.target.value);
-                        if (errors.email) setErrors((p) => ({ ...p, email: undefined }));
+                        if (errors.email)
+                          setErrors((p) => ({ ...p, email: undefined }));
                       }}
                       className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent text-sm transition-all ${
                         errors.email ? "border-[#DC2626]" : "border-[#E2E8F0]"
@@ -124,11 +154,17 @@ export function Login() {
                       placeholder="correo@ejemplo.com"
                       autoComplete="email"
                       aria-required="true"
-                      aria-describedby={errors.email ? "email-error" : undefined}
+                      aria-describedby={
+                        errors.email ? "email-error" : undefined
+                      }
                     />
                   </div>
                   {errors.email && (
-                    <p id="email-error" className="text-[#DC2626] text-xs mt-1" role="alert">
+                    <p
+                      id="email-error"
+                      className="text-[#DC2626] text-xs mt-1"
+                      role="alert"
+                    >
                       {errors.email}
                     </p>
                   )}
@@ -136,8 +172,14 @@ export function Login() {
 
                 {/* Password */}
                 <div className="mb-6">
-                  <label htmlFor="login-password" className="block text-[#334155] mb-1.5 text-sm">
-                    Contraseña <span className="text-[#DC2626]" aria-label="requerido">*</span>
+                  <label
+                    htmlFor="login-password"
+                    className="block text-[#334155] mb-1.5 text-sm"
+                  >
+                    Contraseña{" "}
+                    <span className="text-[#DC2626]" aria-label="requerido">
+                      *
+                    </span>
                   </label>
                   <div className="relative">
                     <Lock
@@ -150,10 +192,13 @@ export function Login() {
                       value={password}
                       onChange={(e) => {
                         setPassword(e.target.value);
-                        if (errors.password) setErrors((p) => ({ ...p, password: undefined }));
+                        if (errors.password)
+                          setErrors((p) => ({ ...p, password: undefined }));
                       }}
                       className={`w-full pl-10 pr-12 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent text-sm transition-all ${
-                        errors.password ? "border-[#DC2626]" : "border-[#E2E8F0]"
+                        errors.password
+                          ? "border-[#DC2626]"
+                          : "border-[#E2E8F0]"
                       }`}
                       placeholder="••••••••"
                       autoComplete="current-password"
@@ -163,7 +208,11 @@ export function Login() {
                       type="button"
                       onClick={() => setShowPassword((v) => !v)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[#64748B] hover:text-[#334155] transition-colors"
-                      aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                      aria-label={
+                        showPassword
+                          ? "Ocultar contraseña"
+                          : "Mostrar contraseña"
+                      }
                     >
                       {showPassword ? (
                         <EyeOff className="w-4 h-4" aria-hidden="true" />
@@ -227,10 +276,17 @@ export function Login() {
                     className="flex items-center gap-2 px-3 py-2.5 bg-[#EFF6FF] border border-[#BFDBFE] rounded-xl hover:bg-[#DBEAFE] transition-colors text-left"
                     aria-label="Usar credenciales de administrador"
                   >
-                    <Shield className="w-4 h-4 text-[#2563EB] shrink-0" aria-hidden="true" />
+                    <Shield
+                      className="w-4 h-4 text-[#2563EB] shrink-0"
+                      aria-hidden="true"
+                    />
                     <div>
-                      <div className="text-[#1E3A8A] text-xs font-medium">Administrador</div>
-                      <div className="text-[#64748B] text-xs">admin@creditline.com</div>
+                      <div className="text-[#1E3A8A] text-xs font-medium">
+                        Administrador
+                      </div>
+                      <div className="text-[#64748B] text-xs">
+                        admin@creditline.com
+                      </div>
                     </div>
                   </button>
                   <button
@@ -239,15 +295,23 @@ export function Login() {
                     className="flex items-center gap-2 px-3 py-2.5 bg-[#F0FDF4] border border-[#BBF7D0] rounded-xl hover:bg-[#DCFCE7] transition-colors text-left"
                     aria-label="Usar credenciales de operario"
                   >
-                    <User className="w-4 h-4 text-[#16A34A] shrink-0" aria-hidden="true" />
+                    <User
+                      className="w-4 h-4 text-[#16A34A] shrink-0"
+                      aria-hidden="true"
+                    />
                     <div>
-                      <div className="text-[#15803D] text-xs font-medium">Operario</div>
-                      <div className="text-[#64748B] text-xs">operario@creditline.com</div>
+                      <div className="text-[#15803D] text-xs font-medium">
+                        Operario
+                      </div>
+                      <div className="text-[#64748B] text-xs">
+                        operario@creditline.com
+                      </div>
                     </div>
                   </button>
                 </div>
                 <p className="text-[#94A3B8] text-xs text-center mt-2">
-                  Haz clic en un rol para llenar las credenciales automáticamente
+                  Haz clic en un rol para llenar las credenciales
+                  automáticamente
                 </p>
               </div>
             </div>
@@ -255,7 +319,8 @@ export function Login() {
 
           {/* Footer note */}
           <p className="text-center text-[#64748B] text-xs mt-5">
-            <span className="text-[#2563EB] font-medium">CreditLine</span> · ClustLayer ·{" "}
+            <span className="text-[#2563EB] font-medium">CreditLine</span> ·
+            ClustLayer ·{" "}
             <span className="italic">Eureka Solutions Projects</span>
           </p>
         </motion.div>

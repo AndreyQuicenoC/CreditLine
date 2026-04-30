@@ -6,6 +6,7 @@ import {
   ReactNode,
 } from "react";
 import { supabase } from "../services/supabase";
+import { logger } from "../../utils/logger";
 
 export type UserRole = "ADMIN" | "OPERARIO";
 
@@ -45,11 +46,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const token = localStorage.getItem("creditline_token");
     const storedUser = localStorage.getItem("creditline_user");
 
+    logger.debug("AuthContext", "Initializing authentication from localStorage", {
+      hasToken: !!token,
+      hasUser: !!storedUser,
+    });
+
     if (token && storedUser) {
       try {
-        setUser(JSON.parse(storedUser));
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        logger.info("AuthContext", "User restored from localStorage", { email: parsedUser.email });
       } catch (error) {
-        console.error("Error parsing stored user:", error);
+        logger.error("AuthContext", "Error parsing stored user", error as Error);
         localStorage.removeItem("creditline_token");
         localStorage.removeItem("creditline_user");
       }
@@ -62,6 +70,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
 
+      logger.info("AuthContext", "Login attempt", { email });
+
       const response = await fetch(`${API_URL}/api/users/login/`, {
         method: "POST",
         headers: {
@@ -72,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!response.ok) {
         const errorData = await response.json();
+        logger.warn("AuthContext", "Login failed", { status: response.status, email });
         return {
           success: false,
           error: errorData.error || "Login failed",
@@ -86,15 +97,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem("creditline_user", JSON.stringify(data.user));
         setUser(data.user);
 
+        logger.info("AuthContext", "Login successful", {
+          email: data.user.email,
+          rol: data.user.rol
+        });
+
         return { success: true };
       }
 
+      logger.warn("AuthContext", "Invalid login response from server");
       return {
         success: false,
         error: "Invalid response from server",
       };
     } catch (error) {
-      console.error("Login error:", error);
+      logger.error("AuthContext", "Login error", error as Error, { email });
       return {
         success: false,
         error: error instanceof Error ? error.message : "Login failed",
@@ -107,11 +124,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     try {
       setLoading(true);
+      logger.info("AuthContext", "Logout initiated", { email: user?.email });
       localStorage.removeItem("creditline_token");
       localStorage.removeItem("creditline_user");
       setUser(null);
+      logger.info("AuthContext", "Logout completed");
     } catch (error) {
-      console.error("Logout error:", error);
+      logger.error("AuthContext", "Logout error", error as Error);
     } finally {
       setLoading(false);
     }

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useAuth, UserRole } from "../context/AuthContext";
 import { Navigate } from "react-router";
 import { Tooltip } from "../components/ui/Tooltip";
+import { logger } from "../../utils/logger";
 
 interface UsuarioSistema {
   id: string;
@@ -37,7 +38,12 @@ function AdminContent() {
     const loadData = async () => {
       try {
         const token = localStorage.getItem('creditline_token');
-        if (!token) return;
+        if (!token) {
+          logger.warn("Administracion", "No authentication token found");
+          return;
+        }
+
+        logger.info("Administracion", "Loading users and system config");
 
         // Fetch users
         const usersRes = await fetch('http://localhost:8000/api/users/list/', {
@@ -45,6 +51,7 @@ function AdminContent() {
         });
         if (usersRes.ok) {
           const data = await usersRes.json();
+          logger.info("Administracion", "Users loaded successfully", { count: data.length });
           setUsuarios(data.map((u: any) => ({
             id: u.auth_id,
             nombre: u.nombre,
@@ -52,6 +59,8 @@ function AdminContent() {
             rol: u.rol,
             ultimoAcceso: u.ultimo_acceso || "—"
           })));
+        } else {
+          logger.warn("Administracion", "Failed to load users", { status: usersRes.status });
         }
 
         // Fetch system config
@@ -60,11 +69,14 @@ function AdminContent() {
         });
         if (configRes.ok) {
           const config = await configRes.json();
+          logger.info("Administracion", "System config loaded successfully");
           setTasaInteres(config.tasa_interes);
           setImpuestoRetraso(config.impuesto_retraso);
+        } else {
+          logger.warn("Administracion", "Failed to load system config", { status: configRes.status });
         }
       } catch (error) {
-        console.error('Error loading data:', error);
+        logger.error("Administracion", "Error loading data", error as Error);
       }
     };
 
@@ -108,6 +120,8 @@ function AdminContent() {
     try {
       if (editingId) {
         // Update existing user
+        logger.info("Administracion", "Updating user", { userId: editingId });
+
         const res = await fetch(`http://localhost:8000/api/users/profile/update/`, {
           method: 'PUT',
           headers: {
@@ -121,13 +135,17 @@ function AdminContent() {
           setUsuarios(prev =>
             prev.map(u => (u.id === editingId ? { ...u, nombre: form.nombre } : u))
           );
+          logger.info("Administracion", "User updated successfully", { nombre: form.nombre });
           toast.success("Usuario actualizado", { description: `"${form.nombre}" fue actualizado.` });
         } else {
           const error = await res.json();
+          logger.warn("Administracion", "Failed to update user", { status: res.status });
           toast.error("Error al actualizar", { description: error.error || "Intenta de nuevo." });
         }
       } else {
         // Create new user
+        logger.info("Administracion", "Creating new user", { email: form.email });
+
         const res = await fetch('http://localhost:8000/api/users/create/', {
           method: 'POST',
           headers: {
@@ -152,9 +170,11 @@ function AdminContent() {
             rol: newUser.rol,
             ultimoAcceso: "—"
           }]);
+          logger.info("Administracion", "User created successfully", { email: form.email, rol: form.rol });
           toast.success("Usuario creado", { description: `"${form.nombre}" fue agregado al sistema.` });
         } else {
           const error = await res.json();
+          logger.warn("Administracion", "Failed to create user", { status: res.status, email: form.email });
           if (typeof error === 'object') {
             const errorMsg = Object.values(error)[0];
             toast.error("Error al crear usuario", { description: String(errorMsg) });
@@ -166,7 +186,7 @@ function AdminContent() {
       setShowForm(false);
       setEditingId(null);
     } catch (error) {
-      console.error('Error:', error);
+      logger.error("Administracion", "Error saving user", error as Error);
       toast.error("Error de conexión", { description: "No se pudo conectar al servidor." });
     } finally {
       setLoading(false);
@@ -178,6 +198,8 @@ function AdminContent() {
     const token = localStorage.getItem('creditline_token');
 
     try {
+      logger.info("Administracion", "Deleting user", { userId: deleteId, nombre: u?.nombre });
+
       const res = await fetch(`http://localhost:8000/api/users/${deleteId}/delete/`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
@@ -186,12 +208,14 @@ function AdminContent() {
       if (res.ok || res.status === 404) {
         setUsuarios((prev) => prev.filter((x) => x.id !== deleteId));
         setDeleteId(null);
+        logger.info("Administracion", "User deleted successfully", { nombre: u?.nombre });
         toast.success("Usuario eliminado", { description: `"${u?.nombre}" fue eliminado.` });
       } else {
+        logger.warn("Administracion", "Failed to delete user", { status: res.status });
         toast.error("Error al eliminar", { description: "No se pudo eliminar el usuario." });
       }
     } catch (error) {
-      console.error('Error:', error);
+      logger.error("Administracion", "Error deleting user", error as Error);
       toast.error("Error de conexión", { description: "No se pudo conectar al servidor." });
     }
   };
