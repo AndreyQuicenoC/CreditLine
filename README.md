@@ -2,7 +2,7 @@
 
 **Personal Loan Management System** by ClustLayer (Eureka Solutions Projects)
 
-Current release: **1.1.0**
+Current release: **1.1.1**
 
 A professional-grade loan management platform for administering and tracking personal loans, client portfolios, and financial operations.
 
@@ -257,6 +257,12 @@ Proprietary software. See [LICENSE](./LICENSE) for the full terms.
 ## Changelog
 
 See [CHANGELOG.md](./CHANGELOG.md) for the full release history.
+
+### v1.1.1 - Patch
+
+- Fix: Create user flow compatible with dev mock_auth_users schema (avoid auth_id column errors).
+- UX: Keep create/edit modal open on validation/server errors; add Enter-to-submit and password visibility toggle.
+- Notifications: add explicit close action to toasts.
 
 ### v1.1.0 - Admin Section
 

@@ -31,7 +31,7 @@ else {
 # Step 3: Verify Django setup
 Write-Host "[3/4] Verifying Django configuration..." -ForegroundColor Yellow
 Push-Location backend
-& ".\..\venv\Scripts\python.exe" manage.py check 2>&1 | Out-Null
+& "..\.venv\Scripts\python.exe" manage.py check 2>&1 | Out-Null
 if ($LASTEXITCODE -eq 0) {
     Write-Host "✓ Django configuration is valid" -ForegroundColor Green
 }
@@ -60,6 +60,6 @@ Write-Host "1. Initialize development data in Supabase SQL Editor (see docs/BACK
 Write-Host "2. Start backend:  cd backend && python manage.py runserver_safe 8000"
 Write-Host "3. Start frontend: cd frontend && npm run dev"
 Write-Host "4. Open http://localhost:5173 and login with:"
-Write-Host "   - Admin: admin@example.com / admin123"
-Write-Host "   - Operario: operario@example.com / operario123"
+Write-Host "   - Admin: admin@creditline.com / admin123"
+Write-Host "   - Operario: operario@creditline.com / operario123"
 Write-Host ""

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Edit2, Trash2, Shield, User, Save } from "lucide-react";
+import { Plus, Edit2, Trash2, Shield, User, Save, Eye, EyeOff } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
 import { useAuth, UserRole } from "../context/AuthContext";
@@ -38,6 +38,7 @@ function AdminContent() {
   const [tasaInteres, setTasaInteres] = useState(10);
   const [impuestoRetraso, setImpuestoRetraso] = useState(5);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Load users and config on mount
   useEffect(() => {
@@ -159,13 +160,25 @@ function AdminContent() {
           });
           toast.success("Usuario actualizado", {
             description: `"${form.nombre}" fue actualizado.`,
+            action: (
+              <button onClick={() => toast.dismiss()} className="font-medium">
+                Cerrar
+              </button>
+            ),
           });
+          setShowForm(false);
+          setEditingId(null);
         } else {
           logger.warn("Administracion", "Failed to update user", {
             error: res.error,
           });
           toast.error("Error al actualizar", {
             description: res.error || "Intenta de nuevo.",
+            action: (
+              <button onClick={() => toast.dismiss()} className="font-medium">
+                Cerrar
+              </button>
+            ),
           });
         }
       } else {
@@ -199,19 +212,30 @@ function AdminContent() {
           });
           toast.success("Usuario creado", {
             description: `"${form.nombre}" fue agregado al sistema.`,
+            action: (
+              <button onClick={() => toast.dismiss()} className="font-medium">
+                Cerrar
+              </button>
+            ),
           });
+          setShowForm(false);
+          setEditingId(null);
         } else {
           logger.warn("Administracion", "Failed to create user", {
             error: res.error,
             email: form.email,
           });
+          // If email already exists, keep modal open and show actionable toast
           toast.error("Error al crear usuario", {
             description: res.error || "Intenta de nuevo.",
+            action: (
+              <button onClick={() => toast.dismiss()} className="font-medium">
+                Cerrar
+              </button>
+            ),
           });
         }
       }
-      setShowForm(false);
-      setEditingId(null);
     } catch (error) {
       logger.error("Administracion", "Error saving user", error as Error);
       toast.error("Error de conexión", {
@@ -552,6 +576,12 @@ function AdminContent() {
                       setForm((p) => ({ ...p, nombre: e.target.value }));
                       setErrors((p) => ({ ...p, nombre: "" }));
                     }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleSave();
+                      }
+                    }}
                     className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] text-sm ${errors.nombre ? "border-[#DC2626]" : "border-[#E2E8F0]"}`}
                     placeholder="Nombre del usuario"
                   />
@@ -576,6 +606,12 @@ function AdminContent() {
                       setForm((p) => ({ ...p, email: e.target.value }));
                       setErrors((p) => ({ ...p, email: "" }));
                     }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleSave();
+                      }
+                    }}
                     className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] text-sm ${errors.email ? "border-[#DC2626]" : "border-[#E2E8F0]"}`}
                     placeholder="correo@ejemplo.com"
                   />
@@ -592,7 +628,7 @@ function AdminContent() {
                   >
                     Rol <span className="text-[#DC2626]">*</span>
                   </label>
-                  <select
+                    <select
                     id="uf-rol"
                     value={form.rol}
                     onChange={(e) =>
@@ -601,6 +637,12 @@ function AdminContent() {
                         rol: e.target.value as UserRole,
                       }))
                     }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleSave();
+                        }
+                      }}
                     className="w-full px-4 py-3 border border-[#E2E8F0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] bg-white text-sm"
                   >
                     <option value="OPERARIO">Operario</option>
@@ -615,17 +657,37 @@ function AdminContent() {
                     >
                       Contraseña <span className="text-[#DC2626]">*</span>
                     </label>
+                    <div className="relative">
                     <input
                       id="uf-password"
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       value={form.password}
                       onChange={(e) => {
                         setForm((p) => ({ ...p, password: e.target.value }));
                         setErrors((p) => ({ ...p, password: "" }));
                       }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleSave();
+                        }
+                      }}
                       className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] text-sm ${errors.password ? "border-[#DC2626]" : "border-[#E2E8F0]"}`}
                       placeholder="Mínimo 6 caracteres"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[#64748B] hover:text-[#334155] transition-colors"
+                      aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="w-4 h-4" aria-hidden="true" />
+                      ) : (
+                        <Eye className="w-4 h-4" aria-hidden="true" />
+                      )}
+                    </button>
+                    </div>
                     {errors.password && (
                       <p className="text-[#DC2626] text-xs mt-1">
                         {errors.password}

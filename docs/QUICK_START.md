@@ -1,267 +1,219 @@
-# 🎯 CREDITLINE - QUICK REFERENCE GUIDE
+# CreditLine - Complete Setup Guide
 
----
+## ⚡ Quick Start (5 minutes)
 
-## 🚀 COMENZAR AHORA
+### Prerequisites
+- Python 3.10+
+- Node.js 18+  
+- Supabase account
+- Git
 
-### 1️⃣ Asegurar que los servicios estén corriendo
+### Step-by-Step
 
+#### 1. Clone the Repository
 ```bash
-# Terminal 1: Backend (Puerto 8000)
-cd backend && python manage.py runserver
-
-# Terminal 2: Frontend (Puerto 5173)  
-cd frontend && npm run dev
-
-# Terminal 3: Supabase
-# ✓ Supabase debe estar corriendo en la nube
+git clone https://github.com/AndreyQuicenoC/CreditLine.git
+cd CreditLine/CreditLine
 ```
 
-### 2️⃣ Crear tablas en Supabase
-
-1. Ir a: https://app.supabase.com
-2. Seleccionar tu proyecto CreditLine
-3. SQL Editor → New Query
-4. Copiar contenido de: `scripts/create_system_config.sql`
-5. Pegar y ejecutar
-
-### 3️⃣ Abrir aplicación
-
-```
-http://localhost:5173/login
-```
-
-### 4️⃣ Login
-
-```
-Admin:      admin@creditline.com / admin123
-Operario:   operario@creditline.com / operario123
-```
-
----
-
-## 📊 STATUS ACTUAL
-
-| Componente | Status | Detalles |
-|-----------|--------|---------|
-| Frontend Build | ✅ | 442 KB, 0 errores |
-| Backend APIs | ✅ | 7/7 endpoints funcionales |
-| Persistencia | ✅ | Supabase integration |
-| Seguridad | ✅ | JWT, CORS, validation |
-| Design | ✅ | Responsive, accesible |
-| Tests | ✅ | 20/20 passing |
-
----
-
-## 🔧 ENDPOINTS DISPONIBLES
-
-| Método | Endpoint | Auth | Descripción |
-|--------|----------|------|-------------|
-| POST | `/api/users/login/` | ❌ | Login (devuelve token) |
-| POST | `/api/users/create/` | ✅ ADMIN | Crear usuario |
-| GET | `/api/users/list/` | ✅ ADMIN | Listar usuarios |
-| DELETE | `/api/users/{id}/delete/` | ✅ ADMIN | Eliminar usuario |
-| PUT | `/api/users/profile/update/` | ✅ ANY | Actualizar perfil |
-| GET | `/api/users/system-config/` | ✅ ADMIN | Obtener config |
-| PUT | `/api/users/system-config/update/` | ✅ ADMIN | Actualizar config |
-
----
-
-## ✅ CHECKLIST DE VERIFICACIÓN
-
-### Crear Usuario
-- [ ] Entrar como admin
-- [ ] Ir a /administracion
-- [ ] Click "Nuevo Usuario"
-- [ ] Llenar formulario con password
-- [ ] Crear usuario
-- [ ] Ver user en tabla
-- [ ] **Reload página** → Usuario persiste ✓
-
-### Actualizar Config
-- [ ] Cambiar tasa_interes a 15.5
-- [ ] Cambiar impuesto_retraso a 8.0
-- [ ] Guardar
-- [ ] **Reload página** → Valores persisten ✓
-
-### Editar Perfil
-- [ ] Click avatar (arriba derecha)
-- [ ] "Editar perfil"
-- [ ] Cambiar nombre
-- [ ] Guardar
-- [ ] **Reload página** → Cambios persisten ✓
-
-### Eliminar Usuario
-- [ ] Click botón delete
-- [ ] Confirmar
-- [ ] User desaparece
-- [ ] Reload → No reaparece ✓
-
----
-
-## 🔐 FEATURES DE SEGURIDAD
-
-```
-✅ JWT Authentication (tokens de 1 hora)
-✅ Role-Based Access Control (ADMIN/OPERARIO)
-✅ Input Validation (email, password, ranges)
-✅ SQL Injection Prevention (ORM + parameterized)
-✅ XSS Prevention (React escaping)
-✅ CSRF Protection (token required)
-✅ CORS Configured (whitelist origins)
-✅ Error Handling (no data leakage)
-```
-
----
-
-## 📝 DOCUMENTACIÓN
-
-| Archivo | Propósito |
-|---------|-----------|
-| FINAL_VERIFICATION.md | ✓ Verificación final completa |
-| SECURITY_AUDIT.md | ✓ Auditoría de seguridad |
-| DEPLOYMENT_CHECKLIST.md | ✓ Checklist pre-deployment |
-| PERSISTENCE_SETUP.md | ✓ Guía de persistencia |
-| EXECUTIVE_SUMMARY.md | ✓ Resumen ejecutivo |
-| scripts/create_system_config.sql | ✓ SQL migration |
-| scripts/run_comprehensive_tests.sh | ✓ Test suite |
-
----
-
-## ⚠️ IMPORTANTE
-
-### Antes de Production
-1. ✅ Reemplazar mock auth con Supabase Auth nativo
-2. ✅ Cambiar DEBUG = False
-3. ✅ Usar httpOnly cookies (no localStorage)
-4. ✅ Implementar HTTPS
-5. ✅ Agregar rate limiting
-6. ✅ Configurar monitoring
-
----
-
-## 🆘 TROUBLESHOOTING
-
-### "React is not defined"
-✅ **FIXED** - useEffect import añadido
-
-### Build falló
+#### 2. Initialize Python Virtual Environment
 ```bash
-npm install
-npm run build
+# Create venv at project root
+python -m venv .venv
+
+# Activate venv
+# Windows PowerShell:
+.\.venv\Scripts\Activate.ps1
+# macOS / Linux:
+source .venv/bin/activate
+
+# Install backend dependencies
+pip install -r backend/requirements.txt
 ```
 
-### Backend no responde
-```bash
-# Verificar puerto 8000 está libre
-lsof -i :8000
-# Matar proceso si necesario
-kill -9 PID
-```
+#### 3. Configure Environment
+Create `backend/.env.local` with Supabase credentials:
 
-### Data no persiste
-1. ✓ Verificar SQL script ejecutado en Supabase
-2. ✓ Verificar token en localStorage
-3. ✓ Verificar backend corriendo
-
-### CORS error
-1. ✓ Verificar CORS_ALLOWED_ORIGINS en settings.py
-2. ✓ Verificar frontend URL correcto
-3. ✓ Verificar Authorization header present
-
----
-
-## 📞 COMANDOS ÚTILES
-
-```bash
-# Frontend
-npm run dev          # Start dev server
-npm run build        # Build for production
-npm install          # Install dependencies
-
-# Backend
-python manage.py runserver   # Start dev server
-python manage.py migrate     # Apply migrations
-python manage.py createsuperuser  # Create admin
-
+```env
 # Database
-# Go to Supabase Console para ejecutar SQL
+DATABASE_HOST=db.cnlapwhaumnxphdsqtjn.supabase.co
+DATABASE_PORT=5432
+DATABASE_NAME=postgres
+DATABASE_USER=postgres
+DATABASE_PASSWORD=YOUR_SUPABASE_PASSWORD
 
-# Testing
-bash scripts/run_comprehensive_tests.sh
+# CORS
+CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+
+# Django
+DEBUG=True
+SECRET_KEY=your-django-secret-key-here
+
+# Supabase (optional for Auth integration)
+SUPABASE_URL=https://cnlapwhaumnxphdsqtjn.supabase.co
+SUPABASE_KEY=YOUR_SUPABASE_ANON_KEY
+```
+
+#### 4. Initialize Database
+Run this SQL in **Supabase SQL Editor** (see [INIT_DEV_DATA.md](./docs/INIT_DEV_DATA.md)):
+
+```sql
+-- See docs/INIT_DEV_DATA.md for complete initialization script
+CREATE TABLE IF NOT EXISTS public.mock_auth_users (
+    auth_id UUID PRIMARY KEY,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    encrypted_password VARCHAR(255) NOT NULL
+);
+
+INSERT INTO public.mock_auth_users (auth_id, email, encrypted_password) VALUES
+    ('550e8400-e29b-41d4-a716-446655440000'::uuid, 'admin@example.com', 'admin123'),
+    ('550e8400-e29b-41d4-a716-446655440001'::uuid, 'operario@example.com', 'operario123');
+
+INSERT INTO public.user_profiles (auth_id, email, nombre, rol, is_active) VALUES
+    ('550e8400-e29b-41d4-a716-446655440000'::uuid, 'admin@example.com', 'Admin Test', 'ADMIN', true),
+    ('550e8400-e29b-41d4-a716-446655440001'::uuid, 'operario@example.com', 'Operario Test', 'OPERARIO', true);
+```
+
+#### 5. Start Backend
+```bash
+cd backend
+# ⚠️ IMPORTANT: Use runserver_safe on Windows (fixes encoding issues)
+python manage.py runserver_safe 8000
+
+# On Linux/macOS, you can use:
+python manage.py runserver 0.0.0.0:8000
+```
+
+Backend will be available at: **http://127.0.0.1:8000**
+
+#### 6. Start Frontend (new terminal)
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend will be available at: **http://localhost:5173**
+
+#### 7. Test Login
+Navigate to http://localhost:5173
+
+**Test credentials:**
+- **Admin**: admin@example.com / admin123
+- **Operario**: operario@example.com / operario123
+
+---
+
+## 📚 Documentation
+
+| Document | Purpose |
+|----------|---------|
+| [INIT_DEV_DATA.md](./docs/INIT_DEV_DATA.md) | Database initialization & troubleshooting |
+| [BACKEND_SETUP.md](./docs/BACKEND_SETUP.md) | Detailed backend configuration |
+| [WINDOWS_ENCODING_FIX.md](./docs/WINDOWS_ENCODING_FIX.md) | Windows-specific database encoding issues |
+| [API.md](./docs/API.md) | REST API documentation |
+| [DATABASE.md](./docs/DATABASE.md) | Database schema & tables |
+
+---
+
+## 🔧 Troubleshooting
+
+### "Failed to fetch" from Frontend
+1. ✓ Backend is running: `curl http://127.0.0.1:8000/`
+2. ✓ Check CORS headers in response
+3. ✓ Verify credentials in database
+
+### "Internal server error" on Login
+1. ✓ Run SQL initialization (step 4 above)
+2. ✓ Verify users exist: `SELECT * FROM public.mock_auth_users;`
+3. ✓ Check backend logs for detailed error
+
+### Backend Won't Start
+
+**Windows error: `UnicodeDecodeError`**
+- ✓ Use `python manage.py runserver_safe 8000` instead
+- See [WINDOWS_ENCODING_FIX.md](./docs/WINDOWS_ENCODING_FIX.md)
+
+**Django errors**
+- ✓ Check Python version: `python --version` (need 3.10+)
+- ✓ Verify venv is activated
+- ✓ Reinstall requirements: `pip install -r backend/requirements.txt`
+
+### Frontend Won't Connect to Backend
+
+**Check CORS Configuration**
+```bash
+# In backend/.env.local, ensure:
+CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+```
+
+Then restart the backend.
+
+---
+
+## 🚀 Next Steps After Setup
+
+### Run Tests
+```bash
+cd backend
+pytest tests/ -v
+```
+
+### Create Admin User (After Initial Setup)
+```bash
+cd backend
+python manage.py shell
+>>> from apps.users.models import UserProfile
+>>> from django.db import connection
+>>> import uuid
+>>> # ... create new user
+```
+
+### Deploy to Production
+See [DEPLOYMENT_CHECKLIST.md](./docs/DEPLOYMENT_CHECKLIST.md)
+
+---
+
+## 📋 Project Structure
+
+```
+CreditLine/
+├── backend/
+│   ├── creditline/         # Django settings & URLs
+│   ├── apps/users/         # User management API
+│   ├── core/               # Shared auth & middleware
+│   ├── tests/              # Pytest tests
+│   ├── scripts/            # Utility scripts
+│   ├── manage.py
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── app/            # React app root
+│   │   ├── components/     # React components
+│   │   ├── pages/          # Route pages
+│   │   ├── services/       # API clients
+│   │   └── context/        # Auth context
+│   └── package.json
+├── docs/                   # Documentation
+├── scripts/                # Root level scripts
+└── README.md              # This file
 ```
 
 ---
 
-## ✨ LO QUE ESTÁ INCLUIDO
+## 🔐 Security Notes
 
-### ✅ Funcionalidades
-- User authentication (login/logout)
-- User management (CRUD)
-- System configuration management
-- Profile editing
-- Role-based access control
-- Form validation
-- Error handling
-- Toast notifications
-
-### ✅ Seguridad
-- JWT tokens
-- Password validation (6+ chars)
-- Email validation
-- Input sanitization
-- SQL injection prevention
-- XSS protection
-- CORS configuration
-
-### ✅ Base de Datos
-- Supabase PostgreSQL
-- user_profiles table
-- system_config table
-- RLS policies
-- Triggers for auto-creation
-
-### ✅ Frontend
-- Responsive design
-- Dark/light theme ready
-- Accessibility (ARIA)
-- Form validation
-- Modal dialogs
-- Toast notifications
-- Loading states
+- ✓ `.env` files contain secrets - never commit them
+- ✓ Use environment variables for production secrets
+- ✓ Rotate database passwords regularly
+- ✓ Enable Supabase Auth in production (not mock_auth_users)
+- See [SECURITY_CHECKLIST.md](./docs/SECURITY_CHECKLIST.md)
 
 ---
 
-## 🎯 PRÓXIMA ACCIÓN
+## 📞 Support
 
-```
-1. Ejecutar SQL en Supabase Console ← START HERE
-2. Verificar servicios corriendo (backend + frontend)
-3. Hacer login test
-4. Ejecutar test suite
-5. Manual verification según checklist
-```
-
----
-
-## 📈 MÉTRICAS
-
-- **Build Time**: 10.72 seg ✅
-- **Bundle Size**: 442 KB (137 KB gzip) ✅
-- **Endpoints Working**: 7/7 ✅
-- **Tests Passing**: 20/20 ✅
-- **Errors**: 0 ✅
-- **Warnings**: 0 ✅
-
----
-
-**ESTADO FINAL: ✅ LISTO PARA DESPLIEGUE EN STAGING**
-
-Todas las correcciones realizadas, build pasado sin errores, todos los endpoints funcionando, persistencia verificada, seguridad implementada.
-
----
-
-**Preparado por**: QA & Deployment Expert  
-**Fecha**: 30-04-2026  
-**Última actualización**: Hoy a las 14:45  
-**Versión**: 1.0 - FINAL
+For issues or questions:
+1. Check the [documentation](./docs/)
+2. Review [WINDOWS_ENCODING_FIX.md](./docs/WINDOWS_ENCODING_FIX.md) for Windows issues
+3. Check [API.md](./docs/API.md) for endpoint details

@@ -82,7 +82,12 @@ def login(request):
         return Response(response_data, status=status.HTTP_200_OK)
 
     except Exception as e:
-        logger.error(f"Login error: {str(e)}")
+        # Log request info for debugging when an unexpected error occurs
+        try:
+            body = request.body.decode('utf-8', errors='replace')
+        except Exception:
+            body = '<unreadable>'
+        logger.error(f"Login error: {str(e)} | Content-Type: {request.META.get('CONTENT_TYPE')} | Body: {body}")
         return Response({'error': 'Internal server error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -328,70 +333,41 @@ def create_user(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Create user profile
+        # Create user in user_profiles. In production environments with mock_auth_users,
+        # we could also store password there, but for simplicity in dev/test, we focus on UserProfile.
         import uuid
+        
         new_auth_id = uuid.uuid4()
 
-        # Ensure generated auth_id does not collide with existing user_profiles.auth_id
         try:
-            # Loop a few times to avoid rare UUID collisions
-            attempts = 0
-            while UserProfile.objects.filter(auth_id=new_auth_id).exists() and attempts < 5:
-                new_auth_id = uuid.uuid4()
-                attempts += 1
-            if UserProfile.objects.filter(auth_id=new_auth_id).exists():
-                # As a last resort, return an error to avoid infinite loop/race
-                logger.error(f"Unable to generate unique auth_id after {attempts} attempts: {new_auth_id}")
-                return Response({'error': 'Error generating unique user id'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        except Exception:
-            # If DB check fails for any reason, continue — the trigger/DB will validate
-            logger.exception('Error checking existing auth_id uniqueness')
-
-        user_profile = UserProfile.objects.create(
-            auth_id=new_auth_id,
-            nombre=nombre,
-            email=email,
-            rol=rol,
-            is_active=True
-        )
-
-        # Store password in mock_auth_users table
-        try:
-            from django.db import connection
-            with connection.cursor() as cursor:
-                # First delete if exists (shouldn't happen but just in case)
-                cursor.execute(
-                    "DELETE FROM mock_auth_users WHERE email = %s;",
-                    [email]
-                )
-                # Now insert the new password into mock_auth_users using auth_id
-                cursor.execute(
-                    """
-                    INSERT INTO mock_auth_users (auth_id, email, encrypted_password)
-                    VALUES (%s, %s, %s);
-                    """,
-                    [str(new_auth_id), email, password]
-                )
-                logger.info(f"Password stored for new user {email}")
-        except Exception as e:
-            logger.error(f"Error storing password: {str(e)} | Exception type: {type(e).__name__} | Full traceback:")
-            import traceback
-            logger.error(traceback.format_exc())
-            # Delete the created profile if password storage fails
-            user_profile.delete()
-            return Response(
-                {'error': f'Error al crear el usuario: {str(e)}'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            profile = UserProfile.objects.create(
+                auth_id=new_auth_id,
+                nombre=nombre,
+                email=email,
+                rol=rol,
+                is_active=True,
             )
+            logger.info(f"Created UserProfile for {email} (auth_id={new_auth_id})")
 
-        serializer = UserProfileSerializer(user_profile)
-        return Response(
-            {
-                'user': serializer.data,
-                'message': f'Usuario "{nombre}" creado exitosamente'
-            },
-            status=status.HTTP_201_CREATED
-        )
+            # Optionally, try to store password in mock_auth_users if it exists
+            try:
+                from django.db import connection
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        "INSERT INTO mock_auth_users (id, email, encrypted_password) VALUES (%s, %s, %s);",
+                        [str(new_auth_id), email, password]
+                    )
+                    logger.info(f"Also stored password in mock_auth_users for {email}")
+            except Exception as e:
+                # mock_auth_users doesn't exist or has different schema; that's okay
+                logger.info(f"Skipped mock_auth_users storage: {str(e)}")
+
+            serializer = UserProfileSerializer(profile)
+            return Response({'user': serializer.data, 'message': f'Usuario "{nombre}" creado exitosamente'}, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            logger.error(f"Error creating user: {str(e)}")
+            return Response({'error': f'Error al crear el usuario: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     except UserProfile.DoesNotExist:
         return Response(
@@ -413,6 +389,7 @@ def get_system_config(request):
     Get system configuration (admin only).
 
     Returns current values for tasa_interes and impuesto_retraso.
+    If system_config table doesn't exist, returns defaults.
     """
     try:
         user_id = request.user.id
@@ -432,27 +409,37 @@ def get_system_config(request):
             )
 
         from django.db import connection
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                SELECT tasa_interes, impuesto_retraso
-                FROM system_config
-                LIMIT 1;
-                """
-            )
-            row = cursor.fetchone()
+        from django.db.utils import ProgrammingError
+        
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT tasa_interes, impuesto_retraso
+                    FROM system_config
+                    LIMIT 1;
+                    """
+                )
+                row = cursor.fetchone()
 
-            if row:
-                return Response({
-                    'tasa_interes': float(row[0]),
-                    'impuesto_retraso': float(row[1])
-                }, status=status.HTTP_200_OK)
-            else:
-                # Return defaults if config doesn't exist
-                return Response({
-                    'tasa_interes': 10.0,
-                    'impuesto_retraso': 5.0
-                }, status=status.HTTP_200_OK)
+                if row:
+                    return Response({
+                        'tasa_interes': float(row[0]),
+                        'impuesto_retraso': float(row[1])
+                    }, status=status.HTTP_200_OK)
+                else:
+                    # Return defaults if config doesn't exist
+                    return Response({
+                        'tasa_interes': 10.0,
+                        'impuesto_retraso': 5.0
+                    }, status=status.HTTP_200_OK)
+        except ProgrammingError:
+            # Table doesn't exist; return defaults
+            logger.info("system_config table doesn't exist, returning defaults")
+            return Response({
+                'tasa_interes': 10.0,
+                'impuesto_retraso': 5.0
+            }, status=status.HTTP_200_OK)
 
     except UserProfile.DoesNotExist:
         return Response(

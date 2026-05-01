@@ -1,0 +1,218 @@
+Found 10 test(s).
+Creating test database for alias 'default' ('test_postgres')...
+
+Operations to perform:
+  Synchronize unmigrated apps: corsheaders, messages, rest_framework, staticfiles, users
+  Apply all migrations: admin, auth, contenttypes, sessions
+Synchronizing apps without migrations:
+  Creating tables...
+    Creating table user_profiles
+    Running deferred SQL...
+Running migrations:
+  Applying contenttypes.0001_initial... OK
+  Applying auth.0001_initial... OK
+  Applying admin.0001_initial... OK
+  Applying admin.0002_logentry_remove_auto_add... OK
+  Applying admin.0003_logentry_add_action_flag_choices... OK
+  Applying contenttypes.0002_remove_content_type_name... OK
+  Applying auth.0002_alter_permission_name_max_length... OK
+  Applying auth.0003_alter_user_email_max_length... OK
+  Applying auth.0004_alter_user_username_opts... OK
+  Applying auth.0005_alter_user_last_login_null... OK
+  Applying auth.0006_require_contenttypes_0002... OK
+  Applying auth.0007_alter_validators_add_error_messages... OK
+  Applying auth.0008_alter_user_username_max_length... OK
+  Applying auth.0009_alter_user_last_name_max_length... OK
+  Applying auth.0010_alter_group_name_max_length... OK
+  Applying auth.0011_update_proxy_permissions... OK
+  Applying auth.0012_alter_user_first_name_max_length... OK
+  Applying sessions.0001_initial... OK
+System check identified no issues (0 silenced).
+test_get_system_config_as_admin (backend.apps.users.tests.SystemConfigTests.test_get_system_config_as_admin)
+Test get system config as admin. ... C:\Users\lu\Downloads\C¾digo\ClustLayer\Eureka\CreditLine\.venv\Lib\site-packages\jwt\api_jwt.py:147: InsecureKeyLengthWarning: The HMAC key is 25 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+  return self._jws.encode(
+C:\Users\lu\Downloads\C¾digo\ClustLayer\Eureka\CreditLine\.venv\Lib\site-packages\jwt\api_jwt.py:365: InsecureKeyLengthWarning: The HMAC key is 25 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+  decoded = self.decode_complete(
+[ERROR] 2026-04-30 21:55:17 apps.users.views Error fetching system config: relation "system_config" does not exist
+LINE 3:                 FROM system_config
+                             ^
+
+[ERROR] 2026-04-30 21:55:17 django.request Internal Server Error: /api/users/system-config/
+FAIL
+test_get_profile (backend.apps.users.tests.UserAuthenticationTests.test_get_profile)
+Response status: 200, data: {'id': '8aaa1323-f601-4439-81c9-c8ed932efd05', 'auth_id': '368de84d-615e-4ea2-9ab6-ca4ff54f3feb', 'email': 'admin@test.com', 'nombre': 'Admin Test', 'rol': 'ADMIN', 'is_active': True, 'ultimo_acceso': '2026-04-30T21:55:19.679119-05:00', 'created_at': '2026-04-30T21:55:19.197017-05:00', 'updated_at': '2026-04-30T21:55:19.197036-05:00'}
+Test get profile endpoint. ... ok
+test_get_profile_without_auth (backend.apps.users.tests.UserAuthenticationTests.test_get_profile_without_auth)
+Test get profile without authentication. ... [WARNING] 2026-04-30 21:55:20 django.request Unauthorized: /api/users/profile/
+ok
+test_update_profile (backend.apps.users.tests.UserAuthenticationTests.test_update_profile)
+Test update profile endpoint. ... ok
+test_create_user_as_admin (backend.apps.users.tests.UserManagementTests.test_create_user_as_admin)
+Test create user as admin. ... [WARNING] 2026-04-30 21:55:24 apps.users.views create_user: mock_auth_users table missing, falling back to direct profile creation
+[ERROR] 2026-04-30 21:55:24 apps.users.views Error creating auth record: current transaction is aborted, commands ignored until end of transaction block
+
+[ERROR] 2026-04-30 21:55:24 apps.users.views Traceback (most recent call last):
+  File "C:\Users\lu\Downloads\C¾digo\ClustLayer\Eureka\CreditLine\.venv\Lib\site-packages\django\db\backends\utils.py", line 89, in _execute
+    return self.cursor.execute(sql, params)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+psycopg2.errors.UndefinedTable: relation "mock_auth_users" does not exist
+LINE 1: SELECT id FROM mock_auth_users WHERE email = 'newuser@test.c...
+                       ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\lu\Downloads\C¾digo\ClustLayer\Eureka\CreditLine\CreditLine\backend\apps\users\views.py", line 349, in create_user
+    cursor.execute("SELECT id FROM mock_auth_users WHERE email = %s;", [email])
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\lu\Downloads\C¾digo\ClustLayer\Eureka\CreditLine\.venv\Lib\site-packages\django\db\backends\utils.py", line 67, in execute
+    return self._execute_with_wrappers(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        sql, params, many=False, executor=self._execute
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\lu\Downloads\C¾digo\ClustLayer\Eureka\CreditLine\.venv\Lib\site-packages\django\db\backends\utils.py", line 80, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+  File "C:\Users\lu\Downloads\C¾digo\ClustLayer\Eureka\CreditLine\.venv\Lib\site-packages\django\db\backends\utils.py", line 84, in _execute
+    with self.db.wrap_database_errors:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\lu\Downloads\C¾digo\ClustLayer\Eureka\CreditLine\.venv\Lib\site-packages\django\db\utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "C:\Users\lu\Downloads\C¾digo\ClustLayer\Eureka\CreditLine\.venv\Lib\site-packages\django\db\backends\utils.py", line 89, in _execute
+    return self.cursor.execute(sql, params)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+django.db.utils.ProgrammingError: relation "mock_auth_users" does not exist
+LINE 1: SELECT id FROM mock_auth_users WHERE email = 'newuser@test.c...
+                       ^
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\lu\Downloads\C¾digo\ClustLayer\Eureka\CreditLine\.venv\Lib\site-packages\django\db\backends\utils.py", line 89, in _execute
+    return self.cursor.execute(sql, params)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+psycopg2.errors.InFailedSqlTransaction: current transaction is aborted, commands ignored until end of transaction block
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\lu\Downloads\C¾digo\ClustLayer\Eureka\CreditLine\CreditLine\backend\apps\users\views.py", line 352, in create_user
+    profile = UserProfile.objects.create(
+        auth_id=new_auth_id,
+    ...<3 lines>...
+        is_active=True,
+    )
+  File "C:\Users\lu\Downloads\C¾digo\ClustLayer\Eureka\CreditLine\.venv\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\lu\Downloads\C¾digo\ClustLayer\Eureka\CreditLine\.venv\Lib\site-packages\django\db\models\query.py", line 658, in create
+    obj.save(force_insert=True, using=self.db)
+    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\lu\Downloads\C¾digo\ClustLayer\Eureka\CreditLine\.venv\Lib\site-packages\django\db\models\base.py", line 814, in save
+    self.save_base(
+    ~~~~~~~~~~~~~~^
+        using=using,
+        ^^^^^^^^^^^^
+    ...<2 lines>...
+        update_fields=update_fields,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\lu\Downloads\C¾digo\ClustLayer\Eureka\CreditLine\.venv\Lib\site-packages\django\db\models\base.py", line 877, in save_base
+    updated = self._save_table(
+        raw,
+    ...<4 lines>...
+        update_fields,
+    )
+  File "C:\Users\lu\Downloads\C¾digo\ClustLayer\Eureka\CreditLine\.venv\Lib\site-packages\django\db\models\base.py", line 1020, in _save_table
+    results = self._do_insert(
+        cls._base_manager, using, fields, returning_fields, raw
+    )
+  File "C:\Users\lu\Downloads\C¾digo\ClustLayer\Eureka\CreditLine\.venv\Lib\site-packages\django\db\models\base.py", line 1061, in _do_insert
+    return manager._insert(
+           ~~~~~~~~~~~~~~~^
+        [self],
+        ^^^^^^^
+    ...<3 lines>...
+        raw=raw,
+        ^^^^^^^^
+    )
+    ^
+  File "C:\Users\lu\Downloads\C¾digo\ClustLayer\Eureka\CreditLine\.venv\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\lu\Downloads\C¾digo\ClustLayer\Eureka\CreditLine\.venv\Lib\site-packages\django\db\models\query.py", line 1805, in _insert
+    return query.get_compiler(using=using).execute_sql(returning_fields)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "C:\Users\lu\Downloads\C¾digo\ClustLayer\Eureka\CreditLine\.venv\Lib\site-packages\django\db\models\sql\compiler.py", line 1822, in execute_sql
+    cursor.execute(sql, params)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\lu\Downloads\C¾digo\ClustLayer\Eureka\CreditLine\.venv\Lib\site-packages\django\db\backends\utils.py", line 67, in execute
+    return self._execute_with_wrappers(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        sql, params, many=False, executor=self._execute
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\lu\Downloads\C¾digo\ClustLayer\Eureka\CreditLine\.venv\Lib\site-packages\django\db\backends\utils.py", line 80, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+  File "C:\Users\lu\Downloads\C¾digo\ClustLayer\Eureka\CreditLine\.venv\Lib\site-packages\django\db\backends\utils.py", line 84, in _execute
+    with self.db.wrap_database_errors:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\lu\Downloads\C¾digo\ClustLayer\Eureka\CreditLine\.venv\Lib\site-packages\django\db\utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "C:\Users\lu\Downloads\C¾digo\ClustLayer\Eureka\CreditLine\.venv\Lib\site-packages\django\db\backends\utils.py", line 89, in _execute
+    return self.cursor.execute(sql, params)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+django.db.utils.InternalError: current transaction is aborted, commands ignored until end of transaction block
+
+
+[ERROR] 2026-04-30 21:55:24 django.request Internal Server Error: /api/users/create/
+FAIL
+test_create_user_as_operator (backend.apps.users.tests.UserManagementTests.test_create_user_as_operator)
+Test create user as operator (should fail). ... [WARNING] 2026-04-30 21:55:25 django.request Forbidden: /api/users/create/
+ok
+test_delete_user_as_admin (backend.apps.users.tests.UserManagementTests.test_delete_user_as_admin)
+Test delete user as admin. ... ok
+test_list_users_as_admin (backend.apps.users.tests.UserManagementTests.test_list_users_as_admin)
+Test list users as admin. ... [INFO] 2026-04-30 21:55:27 apps.users.views list_users: admin=admin@test.com fetched 2 users
+Response: 200, [OrderedDict({'id': '63b713a6-e309-47d7-bbc6-8ee28e37357a', 'auth_id': 'b951c4db-4e9c-406e-905f-e51d6cbfa16c', 'email': 'operator@test.com', 'nombre': 'Operator Test', 'rol': 'OPERARIO', 'is_active': True, 'ultimo_acceso': None, 'created_at': '2026-04-30T21:55:27.291478-05:00', 'updated_at': '2026-04-30T21:55:27.291495-05:00'}), OrderedDict({'id': '93b80068-6bd9-4a60-ae21-6dc796e60150', 'auth_id': 'df5383e7-b690-4a05-8c33-36dc7b260c28', 'email': 'admin@test.com', 'nombre': 'Admin Test', 'rol': 'ADMIN', 'is_active': True, 'ultimo_acceso': None, 'created_at': '2026-04-30T21:55:27.189858-05:00', 'updated_at': '2026-04-30T21:55:27.189875-05:00'})]
+ok
+test_list_users_as_operator (backend.apps.users.tests.UserManagementTests.test_list_users_as_operator)
+Test list users as operator (should fail). ... [WARNING] 2026-04-30 21:55:28 apps.users.views list_users: unauthorized access attempt by user=c78e8f1a-6444-4f99-87a9-b6cbf3f9d665
+[WARNING] 2026-04-30 21:55:28 django.request Forbidden: /api/users/list/
+ok
+test_list_users_without_auth (backend.apps.users.tests.UserManagementTests.test_list_users_without_auth)
+Test list users without authentication. ... [WARNING] 2026-04-30 21:55:29 django.request Unauthorized: /api/users/list/
+ok
+
+======================================================================
+FAIL: test_get_system_config_as_admin (backend.apps.users.tests.SystemConfigTests.test_get_system_config_as_admin)
+Test get system config as admin.
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\lu\Downloads\C¾digo\ClustLayer\Eureka\CreditLine\CreditLine\backend\apps\users\tests.py", line 209, in test_get_system_config_as_admin
+    self.assertEqual(response.status_code, status.HTTP_200_OK)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 500 != 200
+
+======================================================================
+FAIL: test_create_user_as_admin (backend.apps.users.tests.UserManagementTests.test_create_user_as_admin)
+Test create user as admin.
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\lu\Downloads\C¾digo\ClustLayer\Eureka\CreditLine\CreditLine\backend\apps\users\tests.py", line 147, in test_create_user_as_admin
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 500 != 201
+
+----------------------------------------------------------------------
+Ran 10 tests in 14.117s
+
+FAILED (failures=2)
+Destroying test database for alias 'default' ('test_postgres')...
+
