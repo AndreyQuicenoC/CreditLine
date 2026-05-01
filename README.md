@@ -2,14 +2,6 @@
 
 **Personal Loan Management System** by ClustLayer (Eureka Solutions Projects)
 
-[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white)](https://www.python.org)
-[![Node.js 18+](https://img.shields.io/badge/Node.js-18%2B-green?logo=node.js&logoColor=white)](https://nodejs.org)
-[![Django 4.2](https://img.shields.io/badge/Django-4.2-darkgreen?logo=django&logoColor=white)](https://www.djangoproject.com)
-[![React 18](https://img.shields.io/badge/React-18-blue?logo=react&logoColor=white)](https://react.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
-[![License: Proprietary](https://img.shields.io/badge/License-Proprietary-red)](#license)
-[![Release 1.1.0](https://img.shields.io/badge/Release-1.1.0-brightgreen)](#changelog)
-
 Current release: **1.1.0**
 
 A professional-grade loan management platform for administering and tracking personal loans, client portfolios, and financial operations.
