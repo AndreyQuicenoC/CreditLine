@@ -6,12 +6,30 @@ from django.utils import timezone
 import jwt
 import re
 from django.conf import settings
+from functools import lru_cache
 from apps.users.models import UserProfile
 from apps.users.serializers import UserProfileSerializer, UserLoginResponseSerializer
 import logging
 import json
+from supabase import create_client
 
 logger = logging.getLogger(__name__)
+
+
+@lru_cache(maxsize=1)
+def get_supabase_admin_client():
+    """Return a cached Supabase admin client when production credentials are set."""
+    supabase_url = getattr(settings, "SUPABASE_URL", "")
+    service_role_key = getattr(settings, "SUPABASE_SERVICE_ROLE_KEY", "")
+
+    if not supabase_url or not service_role_key:
+        return None
+
+    try:
+        return create_client(supabase_url, service_role_key)
+    except Exception as exc:
+        logger.info(f"Supabase admin client unavailable: {str(exc)}")
+        return None
 
 
 def generate_jwt_token(user_id: str, email: str) -> str:
@@ -202,14 +220,40 @@ def edit_user(request, user_id):
         # Get the user to edit
         target_profile = UserProfile.objects.get(auth_id=user_id)
 
-        # Only allow updating nombre and rol
-        allowed_fields = ['nombre', 'rol']
+        # Allow updating nombre, rol and email
+        allowed_fields = ['nombre', 'rol', 'email']
         data = {k: v for k, v in request.data.items() if k in allowed_fields}
 
         serializer = UserProfileSerializer(target_profile, data=data, partial=True)
         if serializer.is_valid():
-            serializer.save()
-            logger.info(f"edit_user: admin={admin_profile.email} edited user={target_profile.email}")
+            new_email = data.get('email')
+            if new_email and new_email != target_profile.email:
+                supabase_admin = get_supabase_admin_client()
+                if supabase_admin is not None:
+                    try:
+                        supabase_admin.auth.admin.update_user_by_id(user_id, {'email': new_email})
+                    except Exception as e:
+                        logger.warning(f"edit_user: could not update Supabase auth user: {str(e)}")
+                        return Response(
+                            {'error': 'No se pudo actualizar el correo en autenticación'},
+                            status=status.HTTP_502_BAD_GATEWAY,
+                        )
+
+            updated_profile = serializer.save()
+            # If email was changed, also update mock_auth_users table if present
+            if 'email' in data:
+                try:
+                    from django.db import connection
+                    with connection.cursor() as cursor:
+                        cursor.execute(
+                            "UPDATE mock_auth_users SET email = %s WHERE auth_id = %s;",
+                            [data['email'], user_id]
+                        )
+                except Exception as e:
+                    # It's okay if mock_auth_users doesn't exist in some envs
+                    logger.info(f"edit_user: could not update mock_auth_users: {str(e)}")
+
+            logger.info(f"edit_user: admin={admin_profile.email} edited user={updated_profile.email}")
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -354,7 +398,7 @@ def create_user(request):
                 from django.db import connection
                 with connection.cursor() as cursor:
                     cursor.execute(
-                        "INSERT INTO mock_auth_users (id, email, encrypted_password) VALUES (%s, %s, %s);",
+                        "INSERT INTO mock_auth_users (auth_id, email, encrypted_password) VALUES (%s, %s, %s);",
                         [str(new_auth_id), email, password]
                     )
                     logger.info(f"Also stored password in mock_auth_users for {email}")

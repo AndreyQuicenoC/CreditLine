@@ -40,7 +40,7 @@ class Command(BaseCommand):
                     # Note: mock_auth_users uses 'id' column (not 'auth_id')
                     cursor.execute(
                         """
-                        INSERT INTO mock_auth_users (id, email, encrypted_password)
+                        INSERT INTO mock_auth_users (auth_id, email, encrypted_password)
                         VALUES (%s, %s, %s)
                         ON CONFLICT (email) DO UPDATE SET encrypted_password = EXCLUDED.encrypted_password;
                         """,

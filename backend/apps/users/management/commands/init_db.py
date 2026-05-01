@@ -74,7 +74,7 @@ class Command(BaseCommand):
                     BEGIN
                         -- Insert profile only if not exists for this auth id
                         INSERT INTO public.user_profiles (auth_id, email, nombre, rol, is_active)
-                        VALUES (new.id, new.email, new.email, 'OPERARIO', true)
+                        VALUES (new.auth_id, new.email, new.email, 'OPERARIO', true)
                         ON CONFLICT (auth_id) DO NOTHING;
                         RETURN new;
                     END;
