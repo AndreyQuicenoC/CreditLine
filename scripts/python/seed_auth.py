@@ -3,7 +3,7 @@
 Seed CreditLine with initial users.
 
 This script creates the admin and operario demo users in Supabase Auth.
-Usage: python scripts/seed_auth.py
+Usage: python scripts/python/seed_auth.py
 """
 
 import os
@@ -12,7 +12,7 @@ from pathlib import Path
 from decouple import config
 
 # Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from supabase import create_client, Client
 

@@ -1,6 +1,7 @@
 Django==4.2.13
 djangorestframework==3.14.0
 django-cors-headers==4.3.1
+dj-database-url==2.1.0
 python-decouple==3.8
 python-dotenv==1.0.1
 psycopg2-binary==2.9.10
@@ -8,3 +9,9 @@ supabase==2.4.4
 requests==2.32.3
 PyJWT==2.12.1
 cryptography==42.0.8
+
+# Testing
+pytest==7.4.3
+pytest-django==4.7.0
+pytest-cov==4.1.0
+

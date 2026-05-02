@@ -5,7 +5,7 @@ import {
   useEffect,
   ReactNode,
 } from "react";
-import { supabase } from "../services/supabase";
+import { logger } from "../../utils/logger";
 
 export type UserRole = "ADMIN" | "OPERARIO";
 
@@ -26,7 +26,7 @@ interface AuthContextType {
     email: string,
     password: string,
   ) => Promise<{ success: boolean; error?: string }>;
-  logout: () => Promise<void>;
+  logout: () => void;
   isAuthenticated: boolean;
   isAdmin: boolean;
   isOperario: boolean;
@@ -40,26 +40,69 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Initialize from localStorage
+  // INIT AUTH FROM LOCALSTORAGE
   useEffect(() => {
+    console.log("[AuthContext] Initializing from localStorage");
     const token = localStorage.getItem("creditline_token");
     const storedUser = localStorage.getItem("creditline_user");
 
+    console.log("[AuthContext] Has token:", !!token);
+    console.log("[AuthContext] Has user:", !!storedUser);
+
     if (token && storedUser) {
       try {
-        setUser(JSON.parse(storedUser));
-      } catch (error) {
-        console.error("Error parsing stored user:", error);
+        const parsed = JSON.parse(storedUser);
+        console.log(
+          "[AuthContext] User restored:",
+          parsed.email,
+          "role:",
+          parsed.rol,
+        );
+        setUser(parsed);
+      } catch (e) {
+        console.log("[AuthContext] Error parsing user, clearing storage");
         localStorage.removeItem("creditline_token");
         localStorage.removeItem("creditline_user");
       }
+    } else {
+      console.log("[AuthContext] No auth data found, user is null");
     }
 
     setLoading(false);
+
+    // Listen for logout events from API
+    const handleLogout = () => {
+      console.log("[AuthContext] Logout event received");
+      setUser(null);
+    };
+
+    // Listen for user updates (e.g., profile changes)
+    const handleUserUpdate = () => {
+      console.log("[AuthContext] User update event received");
+      const storedUser = localStorage.getItem("creditline_user");
+      if (storedUser) {
+        try {
+          const updated = JSON.parse(storedUser);
+          console.log("[AuthContext] User updated:", updated.nombre);
+          setUser(updated);
+        } catch (e) {
+          console.error("[AuthContext] Error parsing updated user");
+        }
+      }
+    };
+
+    window.addEventListener("auth:logout", handleLogout);
+    window.addEventListener("user:updated", handleUserUpdate);
+    return () => {
+      window.removeEventListener("auth:logout", handleLogout);
+      window.removeEventListener("user:updated", handleUserUpdate);
+    };
   }, []);
 
+  // LOGIN
   const login = async (email: string, password: string) => {
     try {
+      console.log("[AuthContext] Login attempt for:", email);
       setLoading(true);
 
       const response = await fetch(`${API_URL}/api/users/login/`, {
@@ -71,50 +114,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const error = await response.json().catch(() => ({}));
+        console.log("[AuthContext] Login failed:", error.error);
         return {
           success: false,
-          error: errorData.error || "Login failed",
+          error: error.error || "Login failed",
         };
       }
 
       const data = await response.json();
 
-      if (data.token && data.user) {
-        // Store token and user
-        localStorage.setItem("creditline_token", data.token);
-        localStorage.setItem("creditline_user", JSON.stringify(data.user));
-        setUser(data.user);
-
-        return { success: true };
+      if (!data.token || !data.user) {
+        console.log("[AuthContext] Invalid server response");
+        return {
+          success: false,
+          error: "Invalid server response",
+        };
       }
 
-      return {
-        success: false,
-        error: "Invalid response from server",
-      };
+      console.log(
+        "[AuthContext] Login successful for:",
+        data.user.email,
+        "role:",
+        data.user.rol,
+      );
+
+      // STORE AUTH
+      localStorage.setItem("creditline_token", data.token);
+      localStorage.setItem("creditline_user", JSON.stringify(data.user));
+
+      setUser(data.user);
+
+      return { success: true };
     } catch (error) {
-      console.error("Login error:", error);
+      console.error("[AuthContext] Login error:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Login failed",
+        error: error instanceof Error ? error.message : "Login error",
       };
     } finally {
       setLoading(false);
     }
   };
 
-  const logout = async () => {
-    try {
-      setLoading(true);
-      localStorage.removeItem("creditline_token");
-      localStorage.removeItem("creditline_user");
-      setUser(null);
-    } catch (error) {
-      console.error("Logout error:", error);
-    } finally {
-      setLoading(false);
-    }
+  // LOGOUT
+  const logout = () => {
+    localStorage.removeItem("creditline_token");
+    localStorage.removeItem("creditline_user");
+    setUser(null);
   };
 
   const value: AuthContextType = {

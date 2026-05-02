@@ -1,11 +1,31 @@
-import { supabase } from "./supabase";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-const API_TIMEOUT = import.meta.env.VITE_API_TIMEOUT || 10000;
+const API_URL =
+  (import.meta.env.VITE_API_URL as string) || "http://localhost:8000";
+const API_TIMEOUT = Number(import.meta.env.VITE_API_TIMEOUT as string) || 10000;
 
 if (!API_URL) {
   throw new Error("Missing VITE_API_URL in environment");
 }
+
+const getToken = () => {
+  const tokenData = localStorage.getItem("creditline_token");
+  if (!tokenData) return null;
+
+  try {
+    // If token is stored as a plain string (legacy)
+    if (!tokenData.includes("{")) {
+      return tokenData;
+    }
+
+    // If stored as JSON, extract the token
+    const parsed = JSON.parse(tokenData);
+    if (typeof parsed === "object" && parsed.token) {
+      return parsed.token;
+    }
+    return tokenData;
+  } catch {
+    return tokenData;
+  }
+};
 
 class APIClient {
   private baseURL: string;
@@ -21,23 +41,26 @@ class APIClient {
     options: RequestInit = {},
   ): Promise<{ data?: T; error?: string }> {
     try {
-      // Get current session and JWT token
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const token = getToken();
 
-      if (!session) {
-        return { error: "No active session" };
+      // No bloquear login
+      const isAuthEndpoint = endpoint.includes("/login/");
+
+      if (!token && !isAuthEndpoint) {
+        console.warn(`[API] Missing auth token for ${options.method} ${endpoint}`);
+        return { error: "Missing auth token" };
       }
 
       const headers: HeadersInit = {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options.headers,
       };
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+      console.log(`[API] ${options.method} ${endpoint}`, { hasToken: !!token });
 
       const response = await fetch(`${this.baseURL}${endpoint}`, {
         ...options,
@@ -47,62 +70,81 @@ class APIClient {
 
       clearTimeout(timeoutId);
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.error || `HTTP ${response.status}`;
-        return { error: errorMessage };
+      const data = await response.json().catch(() => ({}));
+      
+      if (response.status === 401) {
+        console.error(`[API] 401 Unauthorized - clearing auth`);
+        localStorage.removeItem("creditline_token");
+        localStorage.removeItem("creditline_user");
+        // Dispatch custom event that AuthContext listens for
+        window.dispatchEvent(new Event("auth:logout"));
+        return { error: "Unauthorized" };
       }
 
-      const data = await response.json();
+      if (!response.ok) {
+        // Handle different error formats
+        let errorMsg = `HTTP ${response.status}`;
+        
+        // Try to extract error message from various formats
+        if (data.error) {
+          errorMsg = data.error;
+        } else if (data.message) {
+          errorMsg = data.message;
+        } else if (typeof data === 'object' && Object.keys(data).length > 0) {
+          // Validation errors from backend (e.g., {nombre: 'required', email: 'invalid'})
+          const errors = Object.entries(data)
+            .filter(([key]) => key !== 'status' && key !== 'statusCode')
+            .map(([key, value]) => `${key}: ${value}`)
+            .join('; ');
+          if (errors) {
+            errorMsg = errors;
+          }
+        }
+        
+        console.error(`[API] ${options.method} ${endpoint} failed:`, errorMsg, data);
+        return {
+          error: errorMsg,
+        };
+      }
+
+      console.log(`[API] ${options.method} ${endpoint} success`);
       return { data };
     } catch (error) {
-      if (error instanceof Error) {
-        if (error.name === "AbortError") {
-          return { error: "Request timeout" };
-        }
-        return { error: error.message };
+      if (error instanceof Error && error.name === "AbortError") {
+        console.error(`[API] Request timeout for ${options.method} ${endpoint}`);
+        return { error: "Request timeout" };
       }
-      return { error: "Unknown error occurred" };
+
+      console.error(`[API] Request error:`, error);
+      return {
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
     }
   }
 
-  async get<T>(endpoint: string): Promise<{ data?: T; error?: string }> {
+  async get<T>(endpoint: string) {
     return this.request<T>(endpoint, { method: "GET" });
   }
 
-  async post<T>(
-    endpoint: string,
-    body: Record<string, unknown>,
-  ): Promise<{ data?: T; error?: string }> {
+  async post<T>(endpoint: string, body: Record<string, unknown>) {
     return this.request<T>(endpoint, {
       method: "POST",
       body: JSON.stringify(body),
     });
   }
 
-  async put<T>(
-    endpoint: string,
-    body: Record<string, unknown>,
-  ): Promise<{ data?: T; error?: string }> {
+  async put<T>(endpoint: string, body: Record<string, unknown>) {
     return this.request<T>(endpoint, {
       method: "PUT",
       body: JSON.stringify(body),
     });
   }
 
-  async delete<T>(endpoint: string): Promise<{ data?: T; error?: string }> {
+  async delete<T>(endpoint: string) {
     return this.request<T>(endpoint, { method: "DELETE" });
   }
 }
 
 const apiClient = new APIClient(API_URL, API_TIMEOUT);
-
-// User Profile API
-export const userAPI = {
-  getProfile: () => apiClient.get("/api/users/profile/"),
-  updateProfile: (data: { nombre?: string }) =>
-    apiClient.put("/api/users/profile/update/", data),
-  listUsers: () => apiClient.get("/api/users/list/"),
-};
 
 export default apiClient;

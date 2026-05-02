@@ -1,3 +1,14 @@
+# Scripts organization
+
+Scripts have been reorganized for clarity:
+
+- `scripts/sql/` — SQL initialization and dev data scripts (auth, triggers, policies).
+- `scripts/python/` — Python helper scripts for seeding and maintenance.
+- `scripts/bin/` — Shell helpers for environment setup and test runners.
+- `scripts/tools/` — JavaScript/diagnostic tools for frontend debugging.
+- `scripts/tests/` — Small harnesses and test-related utilities.
+
+When editing DB-related SQL, ensure triggers/functions reference `auth_id` if the auth table uses that column name.
 # Scripts - Utility Scripts for CreditLine
 
 This directory contains utility scripts for setup, seeding, and maintenance.

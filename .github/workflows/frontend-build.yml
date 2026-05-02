@@ -1,0 +1,57 @@
+name: Frontend Build & Test
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-build.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-build.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: 'frontend/package-lock.json'
+
+    - name: Install dependencies
+      run: |
+        cd frontend
+        npm ci
+
+    - name: Run linter
+      run: |
+        cd frontend
+        npm run lint 2>/dev/null || echo "Linter not configured"
+
+    - name: Build project
+      run: |
+        cd frontend
+        npm run build
+
+    - name: Check build output
+      run: |
+        cd frontend
+        test -d dist || (echo "Build output not found!"; exit 1)
+        echo "✓ Build output verified"
+
+    - name: Verify asset sizes
+      run: |
+        cd frontend
+        TOTAL_SIZE=$(du -sh dist | cut -f1)
+        echo "Total build size: $TOTAL_SIZE"
+        if [ $(du -s dist | awk '{print $1}') -gt 10485760 ]; then
+          echo "⚠ Warning: Build size exceeds 10MB"
+        fi

@@ -1,0 +1,86 @@
+"""
+View for initializing development data.
+This should be added to apps/users/views.py
+"""
+
+def init_dev_data_view():
+    """Paste this into views.py"""
+    return '''
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def init_dev_data(request):
+    """
+    Initialize development data for testing.
+    WARNING: Only use in development! Dangerous in production.
+    Endpoint: POST /api/users/init-dev-data/
+    """
+    try:
+        import uuid
+        from django.db import connection
+        
+        with connection.cursor() as cursor:
+            # Create mock_auth_users table if not exists
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS mock_auth_users (
+                    auth_id UUID PRIMARY KEY,
+                    email VARCHAR(255) NOT NULL UNIQUE,
+                    encrypted_password VARCHAR(255) NOT NULL
+                );
+            """)
+
+            # Clear existing test data
+            cursor.execute("DELETE FROM mock_auth_users WHERE email IN (%s, %s);", 
+                          ['admin@example.com', 'operario@example.com'])
+
+            # Insert test users
+            admin_id = str(uuid.uuid4())
+            operario_id = str(uuid.uuid4())
+            
+            cursor.execute("""
+                INSERT INTO mock_auth_users (auth_id, email, encrypted_password)
+                VALUES (%s, %s, %s);
+            """, [admin_id, 'admin@example.com', 'admin123'])
+
+            cursor.execute("""
+                INSERT INTO mock_auth_users (auth_id, email, encrypted_password)
+                VALUES (%s, %s, %s);
+            """, [operario_id, 'operario@example.com', 'operario123'])
+
+        # Create UserProfile entries
+        from apps.users.models import UserProfile
+        
+        admin_profile, _ = UserProfile.objects.update_or_create(
+            email='admin@example.com',
+            defaults={
+                'auth_id': admin_id,
+                'nombre': 'Admin Test',
+                'rol': 'ADMIN',
+                'is_active': True
+            }
+        )
+
+        operario_profile, _ = UserProfile.objects.update_or_create(
+            email='operario@example.com',
+            defaults={
+                'auth_id': operario_id,
+                'nombre': 'Operario Test',
+                'rol': 'OPERARIO',
+                'is_active': True
+            }
+        )
+
+        logger.info("Development data initialized")
+        return Response({
+            'message': 'Development data initialized successfully',
+            'users': [
+                {'email': 'admin@example.com', 'password': 'admin123', 'role': 'ADMIN'},
+                {'email': 'operario@example.com', 'password': 'operario123', 'role': 'OPERARIO'},
+            ]
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        logger.error(f"Error initializing dev data: {str(e)}")
+        return Response({
+            'error': f'Failed to initialize data: {str(e)}'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+'''

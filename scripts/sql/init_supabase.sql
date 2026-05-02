@@ -1,3 +1,17 @@
+-- init_supabase.sql
+-- Entry point for Supabase initialization (moved to scripts/sql)
+-- NOTE: This file was moved from scripts/ to scripts/sql/ for better organization.
+-- Ensure trigger functions reference `auth_id` where applicable.
+
+-- Example stub:
+-- CREATE TABLE IF NOT EXISTS mock_auth_users (
+--   auth_id uuid PRIMARY KEY,
+--   email text UNIQUE NOT NULL,
+--   hashed_password text,
+--   created_at timestamptz DEFAULT now()
+-- );
+
+-- Trigger functions and policies should be applied here in real deployments.
 -- ============================================================================
 -- CreditLine Database Initialization Script
 -- Run this script in Supabase SQL Editor to create required tables and triggers
@@ -7,7 +21,7 @@
 -- In production, this is handled by Supabase Auth (auth.users)
 -- This table simulates auth.users for development purposes
 CREATE TABLE IF NOT EXISTS public.mock_auth_users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    auth_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) UNIQUE NOT NULL,
     encrypted_password VARCHAR(255) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -44,7 +58,7 @@ BEGIN
         rol,
         is_active
     ) VALUES (
-        new.id,
+        new.auth_id,
         new.email,
         new.email,  -- Default to email as nombre
         'OPERARIO',  -- Default role

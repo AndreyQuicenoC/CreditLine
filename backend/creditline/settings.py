@@ -65,14 +65,27 @@ TEMPLATES = [
 WSGI_APPLICATION = 'creditline.wsgi.application'
 
 # Database
+# Get database credentials
+db_user = config('DATABASE_USER', default='postgres')
+db_password = config('DATABASE_PASSWORD', default='')
+db_host = config('DATABASE_HOST', default='db.cnlapwhaumnxphdsqtjn.supabase.co')
+db_port = config('DATABASE_PORT', default='5432')
+db_name = config('DATABASE_NAME', default='postgres')
+
+# Pass parameters directly to psycopg2
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DATABASE_NAME', default='postgres'),
-        'USER': config('DATABASE_USER', default='postgres'),
-        'PASSWORD': config('DATABASE_PASSWORD', default=''),
-        'HOST': config('DATABASE_HOST', default='db.cnlapwhaumnxphdsqtjn.supabase.co'),
-        'PORT': config('DATABASE_PORT', default='5432'),
+        'NAME': db_name,
+        'USER': db_user,
+        'PASSWORD': db_password,
+        'HOST': db_host,
+        'PORT': db_port,
+        'OPTIONS': {
+            'client_encoding': 'UTF8',
+        },
+        'CONN_MAX_AGE': 600,
+        'ATOMIC_REQUESTS': False,
     }
 }
 
@@ -104,7 +117,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # REST Framework Configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
+        'core.authentication.JWTAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',

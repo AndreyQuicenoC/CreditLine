@@ -1,0 +1,86 @@
+name: Backend Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-tests.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-tests.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: creditline_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        cd backend
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-django
+
+    - name: Run migrations
+      env:
+        DATABASE_NAME: creditline_test
+        DATABASE_USER: postgres
+        DATABASE_PASSWORD: postgres
+        DATABASE_HOST: localhost
+        DATABASE_PORT: 5432
+        DEBUG: 'True'
+      run: |
+        cd backend
+        python manage.py migrate
+
+    - name: Run tests
+      env:
+        DATABASE_NAME: creditline_test
+        DATABASE_USER: postgres
+        DATABASE_PASSWORD: postgres
+        DATABASE_HOST: localhost
+        DATABASE_PORT: 5432
+        DEBUG: 'True'
+      run: |
+        cd backend
+        python manage.py test apps.users.tests
+
+    - name: Generate coverage report
+      env:
+        DATABASE_NAME: creditline_test
+        DATABASE_USER: postgres
+        DATABASE_PASSWORD: postgres
+        DATABASE_HOST: localhost
+        DATABASE_PORT: 5432
+        DEBUG: 'True'
+      if: always()
+      run: |
+        cd backend
+        pip install coverage
+        coverage run --source='apps' manage.py test apps.users.tests
+        coverage report

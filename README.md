@@ -2,6 +2,8 @@
 
 **Personal Loan Management System** by ClustLayer (Eureka Solutions Projects)
 
+Current release: **1.1.1**
+
 A professional-grade loan management platform for administering and tracking personal loans, client portfolios, and financial operations.
 
 ---
@@ -114,12 +116,14 @@ See `docs/SETUP.md` for step-by-step Supabase configuration.
 ```bash
 cd backend
 
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+# Activate the project virtual environment
+# Windows PowerShell:
+../.venv/Scripts/Activate.ps1
+# macOS / Linux:
+source ../.venv/bin/activate
 
 # Install dependencies
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 
 # Create .env.local with your Supabase credentials
 cp ../.env.local .env.local
@@ -132,6 +136,8 @@ python manage.py runserver 0.0.0.0:8000
 ```
 
 **Backend available at**: `http://localhost:8000`
+
+If `python manage.py runserver` reports `ModuleNotFoundError: No module named 'django'`, activate the project venv first and reinstall the backend requirements.
 
 #### 4. Frontend Setup
 
@@ -176,7 +182,10 @@ npm run dev
 
 ```bash
 cd backend
-source venv/bin/activate
+# Windows PowerShell:
+../.venv/Scripts/Activate.ps1
+# macOS / Linux:
+source ../.venv/bin/activate
 python manage.py runserver
 ```
 
@@ -241,19 +250,31 @@ For issues, questions, or contributions, please open a GitHub issue or contact t
 
 ## License
 
-All rights reserved © ClustLayer. Unauthorized reproduction or distribution is prohibited.
+Proprietary software. See [LICENSE](./LICENSE) for the full terms.
 
 ---
 
 ## Changelog
 
-### v0.1.0 (Initial Release)
+See [CHANGELOG.md](./CHANGELOG.md) for the full release history.
 
-- ✓ Project structure
-- ✓ User authentication (ADMIN / OPERARIO roles)
-- ✓ Login page with validation
-- ✓ Role-based routing
-- ✓ Supabase integration
-- ✓ API foundation
+### v1.1.1 - Patch
 
-**Next**: Admin section, client management, loan tracking
+- Fix: Create user flow compatible with dev mock_auth_users schema (avoid auth_id column errors).
+- UX: Keep create/edit modal open on validation/server errors; add Enter-to-submit and password visibility toggle.
+- Notifications: add explicit close action to toasts.
+
+### v1.1.0 - Admin Section
+
+- First dedicated administrator section.
+- Updated deployment guidance and release metadata.
+- Verified backend and frontend production checks.
+
+### v0.1.0 - Base Version
+
+- Project structure.
+- User authentication (ADMIN / OPERARIO roles).
+- Login page with validation.
+- Role-based routing.
+- Supabase integration.
+- API foundation.
