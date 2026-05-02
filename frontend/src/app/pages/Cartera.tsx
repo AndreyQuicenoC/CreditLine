@@ -60,6 +60,7 @@ export function Cartera() {
   const [municipioFilter, setMunicipioFilter] = useState("todos");
   const [currentPage, setCurrentPage] = useState(1);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [previewId, setPreviewId] = useState<string | null>(null);
 
   const municipiosActivos = municipiosData.filter((m) => m.activo);
 
@@ -319,11 +320,7 @@ export function Cartera() {
                         <div className="flex items-center justify-end gap-1">
                           <Tooltip content="Ver resumen rápido" side="top">
                             <button
-                              onClick={() => {
-                                toast.info(`${cliente.nombre}`, {
-                                  description: `Cédula: ${cliente.cedula} · Tel: ${cliente.telefono} · ${getMunicipioNombre(cliente.municipioId)}`,
-                                });
-                              }}
+                              onClick={() => setPreviewId(cliente.id)}
                               className="p-1.5 hover:bg-[#EFF6FF] rounded-lg transition-colors text-[#64748B] hover:text-[#2563EB]"
                               aria-label={`Vista rápida de ${cliente.nombre}`}
                             >
@@ -492,6 +489,98 @@ export function Cartera() {
                   Eliminar
                 </button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Preview overlay */}
+      <AnimatePresence>
+        {previewId && (
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="preview-title"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              transition={{ duration: 0.2 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
+            >
+              {clientes.find((c) => c.id === previewId) && (
+                <>
+                  <div className="mb-5">
+                    <h3
+                      id="preview-title"
+                      className="text-[#0F172A] text-lg font-semibold mb-1"
+                    >
+                      {clientes.find((c) => c.id === previewId)?.nombre}
+                    </h3>
+                    <p className="text-[#64748B] text-sm">
+                      Resumen rápido del cliente
+                    </p>
+                  </div>
+
+                  <div className="space-y-4 mb-6">
+                    <div>
+                      <div className="text-[#94A3B8] text-xs mb-1">Cédula</div>
+                      <div className="text-[#0F172A] text-sm font-medium">
+                        {clientes.find((c) => c.id === previewId)?.cedula}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[#94A3B8] text-xs mb-1">Teléfono</div>
+                      <div className="text-[#0F172A] text-sm font-medium">
+                        {clientes.find((c) => c.id === previewId)?.telefono}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[#94A3B8] text-xs mb-1">Municipio</div>
+                      <div className="text-[#0F172A] text-sm font-medium">
+                        {getMunicipioNombre(
+                          clientes.find((c) => c.id === previewId)?.municipioId || ""
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[#94A3B8] text-xs mb-1">Estado</div>
+                      <span
+                        className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium ${estadoColor(
+                          calcularEstadoCliente(previewId)
+                        )}`}
+                      >
+                        {estadoLabel(calcularEstadoCliente(previewId))}
+                      </span>
+                    </div>
+                    <div>
+                      <div className="text-[#94A3B8] text-xs mb-1">
+                        Deudas Activas
+                      </div>
+                      <div className="text-[#0F172A] text-sm font-medium">
+                        {getDeudasActivas(previewId)}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setPreviewId(null)}
+                      className="flex-1 px-4 py-3 border border-[#E2E8F0] text-[#334155] rounded-xl hover:bg-[#F8FAFC] transition-colors text-sm"
+                    >
+                      Cerrar
+                    </button>
+                    <Link
+                      to={`/cartera/${previewId}`}
+                      className="flex-1 px-4 py-3 bg-[#2563EB] text-white rounded-xl hover:bg-[#1E3A8A] transition-colors text-sm text-center"
+                    >
+                      Ver Detalle
+                    </Link>
+                  </div>
+                </>
+              )}
             </motion.div>
           </div>
         )}
