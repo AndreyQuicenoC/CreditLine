@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "../../../context/AuthContext";
-import { toast } from "sonner";
+import { toast } from "../../../../lib/toast";
 import { motion, AnimatePresence } from "motion/react";
 import { Tooltip } from "../../ui/ui/tooltip";
 import { usersAPI } from "../../../services/usersAPI";

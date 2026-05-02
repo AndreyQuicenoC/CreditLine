@@ -1,7 +1,16 @@
 import { useState, useEffect } from "react";
-import { Plus, Edit2, Trash2, Shield, User, Save, Eye, EyeOff } from "lucide-react";
+import {
+  Plus,
+  Edit2,
+  Trash2,
+  Shield,
+  User,
+  Save,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { toast } from "sonner";
+import { toast } from "../../lib/toast";
 import { useAuth, UserRole } from "../context/AuthContext";
 import { Navigate } from "react-router";
 import { Tooltip } from "../components/ui/Tooltip";
@@ -98,6 +107,27 @@ function AdminContent() {
     loadData();
   }, []);
 
+  // Listen for global user updates (e.g., profile edited in Navbar)
+  useEffect(() => {
+    const handleUserUpdated = () => {
+      try {
+        const stored = localStorage.getItem("creditline_user");
+        if (!stored) return;
+        const updated = JSON.parse(stored);
+        setUsuarios((prev) =>
+          prev.map((u) =>
+            u.id === updated.auth_id ? { ...u, nombre: updated.nombre, email: updated.email } : u,
+          ),
+        );
+      } catch (e) {
+        /* ignore */
+      }
+    };
+
+    window.addEventListener("user:updated", handleUserUpdated);
+    return () => window.removeEventListener("user:updated", handleUserUpdated);
+  }, []);
+
   const openNew = () => {
     setEditingId(null);
     setForm({ nombre: "", email: "", rol: "OPERARIO", password: "" });
@@ -127,7 +157,10 @@ function AdminContent() {
   };
 
   const handleSave = async () => {
-    console.log("[Administracion] *** HANDLE SAVE CALLED ***", { editingId, form });
+    console.log("[Administracion] *** HANDLE SAVE CALLED ***", {
+      editingId,
+      form,
+    });
     if (!validate()) {
       console.warn("[Administracion] Validation failed");
       toast.error("Formulario incompleto", {
@@ -146,12 +179,15 @@ function AdminContent() {
         const res = await usersAPI.editUser(editingId, {
           nombre: form.nombre,
           rol: form.rol,
+          email: form.email,
         });
 
         if (res.data) {
           setUsuarios((prev) =>
             prev.map((u) =>
-              u.id === editingId ? { ...u, nombre: form.nombre, rol: form.rol } : u,
+              u.id === editingId
+                ? { ...u, nombre: form.nombre, rol: form.rol }
+                : u,
             ),
           );
           logger.info("Administracion", "User updated successfully", {
@@ -162,7 +198,7 @@ function AdminContent() {
             description: `"${form.nombre}" fue actualizado.`,
             action: (
               <button onClick={() => toast.dismiss()} className="font-medium">
-                Cerrar
+                ✕
               </button>
             ),
           });
@@ -176,7 +212,7 @@ function AdminContent() {
             description: res.error || "Intenta de nuevo.",
             action: (
               <button onClick={() => toast.dismiss()} className="font-medium">
-                Cerrar
+                ✕
               </button>
             ),
           });
@@ -214,7 +250,7 @@ function AdminContent() {
             description: `"${form.nombre}" fue agregado al sistema.`,
             action: (
               <button onClick={() => toast.dismiss()} className="font-medium">
-                Cerrar
+                ✕
               </button>
             ),
           });
@@ -230,7 +266,7 @@ function AdminContent() {
             description: res.error || "Intenta de nuevo.",
             action: (
               <button onClick={() => toast.dismiss()} className="font-medium">
-                Cerrar
+                ✕
               </button>
             ),
           });
@@ -480,7 +516,10 @@ function AdminContent() {
             </div>
             <button
               onClick={async () => {
-                console.log("[Administracion] *** GUARDAR CONFIGURACION CLICKED ***", { tasaInteres, impuestoRetraso });
+                console.log(
+                  "[Administracion] *** GUARDAR CONFIGURACION CLICKED ***",
+                  { tasaInteres, impuestoRetraso },
+                );
                 try {
                   const res = await usersAPI.updateSystemConfig({
                     tasa_interes: tasaInteres,
@@ -519,7 +558,7 @@ function AdminContent() {
           <h3 className="text-[#0F172A] mb-4">Información del Sistema</h3>
           <div className="space-y-3">
             {[
-              ["Versión", "1.0.0"],
+              ["Versión", "1.1.1"],
               ["Entorno", "Producción"],
               ["Último respaldo", new Date().toLocaleString()],
             ].map(([k, v]) => (
@@ -628,7 +667,7 @@ function AdminContent() {
                   >
                     Rol <span className="text-[#DC2626]">*</span>
                   </label>
-                    <select
+                  <select
                     id="uf-rol"
                     value={form.rol}
                     onChange={(e) =>
@@ -637,12 +676,12 @@ function AdminContent() {
                         rol: e.target.value as UserRole,
                       }))
                     }
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleSave();
-                        }
-                      }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleSave();
+                      }
+                    }}
                     className="w-full px-4 py-3 border border-[#E2E8F0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] bg-white text-sm"
                   >
                     <option value="OPERARIO">Operario</option>
@@ -658,35 +697,39 @@ function AdminContent() {
                       Contraseña <span className="text-[#DC2626]">*</span>
                     </label>
                     <div className="relative">
-                    <input
-                      id="uf-password"
-                      type={showPassword ? "text" : "password"}
-                      value={form.password}
-                      onChange={(e) => {
-                        setForm((p) => ({ ...p, password: e.target.value }));
-                        setErrors((p) => ({ ...p, password: "" }));
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleSave();
+                      <input
+                        id="uf-password"
+                        type={showPassword ? "text" : "password"}
+                        value={form.password}
+                        onChange={(e) => {
+                          setForm((p) => ({ ...p, password: e.target.value }));
+                          setErrors((p) => ({ ...p, password: "" }));
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleSave();
+                          }
+                        }}
+                        className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] text-sm ${errors.password ? "border-[#DC2626]" : "border-[#E2E8F0]"}`}
+                        placeholder="Mínimo 6 caracteres"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[#64748B] hover:text-[#334155] transition-colors"
+                        aria-label={
+                          showPassword
+                            ? "Ocultar contraseña"
+                            : "Mostrar contraseña"
                         }
-                      }}
-                      className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] text-sm ${errors.password ? "border-[#DC2626]" : "border-[#E2E8F0]"}`}
-                      placeholder="Mínimo 6 caracteres"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((v) => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[#64748B] hover:text-[#334155] transition-colors"
-                      aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="w-4 h-4" aria-hidden="true" />
-                      ) : (
-                        <Eye className="w-4 h-4" aria-hidden="true" />
-                      )}
-                    </button>
+                      >
+                        {showPassword ? (
+                          <EyeOff className="w-4 h-4" aria-hidden="true" />
+                        ) : (
+                          <Eye className="w-4 h-4" aria-hidden="true" />
+                        )}
+                      </button>
                     </div>
                     {errors.password && (
                       <p className="text-[#DC2626] text-xs mt-1">

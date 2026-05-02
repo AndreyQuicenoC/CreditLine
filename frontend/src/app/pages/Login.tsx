@@ -1,16 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import {
-  Mail,
-  Lock,
-  Eye,
-  EyeOff,
-  CreditCard,
-  Shield,
-  User,
-} from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, CreditCard } from "lucide-react";
 import { motion } from "motion/react";
-import { toast } from "sonner";
+import { toast } from "../../lib/toast";
 import { useAuth } from "../context/AuthContext";
 
 export function Login() {
@@ -59,16 +51,7 @@ export function Login() {
     }
   };
 
-  const fillCredentials = (type: "admin" | "operario") => {
-    if (type === "admin") {
-      setEmail("admin@creditline.com");
-      setPassword("admin123");
-    } else {
-      setEmail("operario@creditline.com");
-      setPassword("operario123");
-    }
-    setErrors({});
-  };
+  // demo credentials removed to avoid leaking credentials
 
   return (
     <div
@@ -264,56 +247,7 @@ export function Login() {
                 </button>
               </form>
 
-              {/* Demo credentials */}
-              <div className="mt-6 pt-5 border-t border-[#E2E8F0]">
-                <p className="text-[#64748B] text-xs text-center mb-3">
-                  Credenciales de demostración
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => fillCredentials("admin")}
-                    className="flex items-center gap-2 px-3 py-2.5 bg-[#EFF6FF] border border-[#BFDBFE] rounded-xl hover:bg-[#DBEAFE] transition-colors text-left"
-                    aria-label="Usar credenciales de administrador"
-                  >
-                    <Shield
-                      className="w-4 h-4 text-[#2563EB] shrink-0"
-                      aria-hidden="true"
-                    />
-                    <div>
-                      <div className="text-[#1E3A8A] text-xs font-medium">
-                        Administrador
-                      </div>
-                      <div className="text-[#64748B] text-xs">
-                        admin@creditline.com
-                      </div>
-                    </div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => fillCredentials("operario")}
-                    className="flex items-center gap-2 px-3 py-2.5 bg-[#F0FDF4] border border-[#BBF7D0] rounded-xl hover:bg-[#DCFCE7] transition-colors text-left"
-                    aria-label="Usar credenciales de operario"
-                  >
-                    <User
-                      className="w-4 h-4 text-[#16A34A] shrink-0"
-                      aria-hidden="true"
-                    />
-                    <div>
-                      <div className="text-[#15803D] text-xs font-medium">
-                        Operario
-                      </div>
-                      <div className="text-[#64748B] text-xs">
-                        operario@creditline.com
-                      </div>
-                    </div>
-                  </button>
-                </div>
-                <p className="text-[#94A3B8] text-xs text-center mt-2">
-                  Haz clic en un rol para llenar las credenciales
-                  automáticamente
-                </p>
-              </div>
+              {/* Demo credentials removed to avoid leaking credentials */}
             </div>
           </div>
 

@@ -110,7 +110,7 @@ export const usersAPI = {
   },
 
   // Edit another user (admin only)
-  editUser: async (userId: string, userData: Partial<{ nombre: string; rol: "ADMIN" | "OPERARIO" }>) => {
+  editUser: async (userId: string, userData: Partial<{ nombre: string; rol: "ADMIN" | "OPERARIO"; email: string }>) => {
     try {
       logger.info("usersAPI", "Editing user", { userId, ...userData });
       const response = await apiClient.put<UserProfile>(
