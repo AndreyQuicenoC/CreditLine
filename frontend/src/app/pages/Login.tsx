@@ -1,58 +1,5 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { Lock, User } from "lucide-react";
-import toast from "../../lib/toast";
-
-export function Login() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    await new Promise((r) => setTimeout(r, 700));
-    setLoading(false);
-    if (username === "operario" && password === "password") {
-      localStorage.setItem("token", "mock-token-operario");
-      toast.success("Inicio de sesión", { description: "Bienvenido, operario." });
-      navigate("/dashboard");
-    } else {
-      toast.error("Credenciales inválidas", { description: "Usuario o contraseña incorrectos." });
-    }
-  };
-
-  return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-6">
-          <h2 className="text-[#0F172A] mb-1">Iniciar sesión</h2>
-          <p className="text-[#64748B] text-sm mb-4">Accede con tu cuenta de operario</p>
-
-          <form onSubmit={handleSubmit}>
-            <div className="mb-3">
-              <label htmlFor="username" className="text-sm text-[#334155] block mb-1">Usuario</label>
-              <div className="flex items-center gap-2 bg-[#F8FAFC] p-2 rounded-xl border border-[#E2E8F0]"><User className="w-4 h-4 text-[#94A3B8]" /><input id="username" value={username} onChange={(e) => setUsername(e.target.value)} className="bg-transparent w-full outline-none text-sm" placeholder="operario" /></div>
-            </div>
-
-            <div className="mb-3">
-              <label htmlFor="password" className="text-sm text-[#334155] block mb-1">Contraseña</label>
-              <div className="flex items-center gap-2 bg-[#F8FAFC] p-2 rounded-xl border border-[#E2E8F0]"><Lock className="w-4 h-4 text-[#94A3B8]" /><input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="bg-transparent w-full outline-none text-sm" placeholder="password" /></div>
-            </div>
-
-            <div className="flex gap-3 mt-4">
-              <button type="button" onClick={() => { setUsername("operario"); setPassword("password"); toast.info("Autocompletar", { description: "Credenciales de prueba rellenadas." }); }} className="flex-1 px-4 py-2 border border-[#E2E8F0] rounded-xl text-sm">Demo</button>
-              <button type="submit" disabled={loading} className="flex-1 px-4 py-2 bg-[#2563EB] text-white rounded-xl text-sm">{loading ? "Ingresando..." : "Ingresar"}</button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-}
-import { useState } from "react";
-import { useNavigate } from "react-router";
 import { Mail, Lock, Eye, EyeOff, CreditCard } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "../../lib/toast";
