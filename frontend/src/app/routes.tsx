@@ -95,9 +95,9 @@ export default function Routes() {
         <Route
           path="municipios"
           element={
-            <AdminRoute>
+            <ProtectedRoute>
               <Municipios />
-            </AdminRoute>
+            </ProtectedRoute>
           }
         />
 
