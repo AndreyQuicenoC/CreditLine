@@ -4,7 +4,7 @@
 
 **Personal Loan Management System** by ClustLayer (Eureka Solutions Projects)
 
-Current release: **1.2.0**
+Current release: **1.2.1**
 
 A professional-grade loan management platform for administering and tracking personal loans, client portfolios, and financial operations.
 
