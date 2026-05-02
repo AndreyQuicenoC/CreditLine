@@ -14,6 +14,13 @@ All notable changes to this project will be documented in this file.
 - UX: Enter-to-submit on create/edit overlays, password visibility toggle, and keep overlay open on create errors when email already exists.
 - Notifications: add close action to toolkit toasts.
 
+## 1.2.0 - Operario Section
+
+- Frontend: Add and align operator (operario) views and routes (Inicio, Cartera, Municipios, Deudas, Estadísticas, Finanzas).
+- Data: Add database schema and initial seeding scripts for operator-related tables (municipios, clientes, deudas, abonos, finanzas).
+- Docs: Add database documentation for operario views and seed instructions.
+- Misc: Bump version to 1.2.0 and add technology badges to README.
+
 ## 1.0.0 - Base Version
 
 - Initial platform foundation.

@@ -1,8 +1,10 @@
 # CreditLine
 
+![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen) ![Python](https://img.shields.io/badge/python-%3E%3D3.10-blue) ![Vite](https://img.shields.io/badge/vite-%3E%3D4-purple) ![Supabase](https://img.shields.io/badge/supabase-managed-orange)
+
 **Personal Loan Management System** by ClustLayer (Eureka Solutions Projects)
 
-Current release: **1.1.1**
+Current release: **1.2.0**
 
 A professional-grade loan management platform for administering and tracking personal loans, client portfolios, and financial operations.
 
