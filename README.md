@@ -4,7 +4,7 @@
 
 **Personal Loan Management System** by ClustLayer (Eureka Solutions Projects)
 
-Current release: **1.2.1**
+Current release: **1.2.2**
 
 A professional-grade loan management platform for administering and tracking personal loans, client portfolios, and financial operations.
 
@@ -18,7 +18,9 @@ CreditLine is a comprehensive loan management system designed for financial inst
 - **Client Portfolio Management**: Track clients and their loan history
 - **Loan & Payment Tracking**: Monitor loans, payments, and interest
 - **Financial Analytics**: Detailed statistics and reporting on portfolio performance
-- **Professional UI**: Modern, accessible, and responsive design
+- **Personal Finance Management**: Track personal debts and payments with full CRUD operations
+- **Professional UX**: Modern, accessible, responsive design with professional delete confirmations
+- **Form Focus Management**: Smart autofocus in edit modals to prevent unexpected focus loss
 
 ---
 

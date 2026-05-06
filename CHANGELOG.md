@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.2.2 - UX Polish & Professional Confirmations
+
+- Frontend: Replace browser alert() confirmations with professional DeleteConfirmModal overlays
+  - FinanzasPersonales: Debt and payment deletion with smooth animations
+  - ClienteDetalle: Client debt deletion with professional overlay
+- UX: Fix focus loss on keystroke in edit modals
+  - NuevaDeudaModal: autoFocus only when creating (not editing existing debts)
+  - RegistrarPagoModal: autoFocus only when creating payments (not editing existing payments)
+- Components: Add DeleteConfirmModal with ARIA accessibility attributes, loading states, and design system consistency
+- Testing: Verify build passes with TypeScript strict mode, all pages load correctly with real data
+- Build: Successfully compile frontend (2932 modules, 1.4MB gzipped) and pass backend system checks
+
 ## 1.2.1 - Operario Backend Implementation
 
 - Backend: Complete operario app with models, serializers, views, and services for full loan management
