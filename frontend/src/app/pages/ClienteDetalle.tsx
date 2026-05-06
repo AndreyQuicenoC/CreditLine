@@ -1,32 +1,34 @@
-import { useParams, Link, useNavigate } from "react-router";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useParams } from "react-router";
 import {
-  ArrowLeft,
-  Phone,
-  MapPin,
-  CreditCard,
-  Plus,
-  Mail,
-  Home,
-  Briefcase,
-  FileText,
-  Edit2,
-  CheckCircle2,
   AlertCircle,
+  ArrowLeft,
+  Briefcase,
+  CheckCircle2,
   Clock,
+  CreditCard,
+  Edit2,
+  FileText,
+  Home,
+  Mail,
+  MapPin,
+  Phone,
+  Plus,
   TrendingUp,
+  Trash2,
 } from "lucide-react";
-import { useState } from "react";
 import { motion } from "motion/react";
 import toast from "../../lib/toast";
+import { DeleteConfirmModal } from "../components/ui/DeleteConfirmModal";
 import {
-  clientesData,
-  deudasData,
-  calcularTotalPagado,
-  calcularInteresesGenerados,
   calcularEstadoDeuda,
-  getMunicipioNombre,
-  Deuda,
-} from "../data/mockData";
+  calcularTotalPagado,
+  deudasAPI,
+  clientesAPI,
+  toDeudaView,
+  type DeudaView,
+} from "../services/operario";
+import { todayISODate } from "../services/operario/utils";
 import { Tooltip } from "../components/ui/Tooltip";
 
 function fmt(val: number): string {
@@ -35,28 +37,68 @@ function fmt(val: number): string {
   return `$${val.toLocaleString("es-CO")}`;
 }
 
-// ── Nueva Deuda Modal ───────────────────────────────────────────────────────
+interface ClienteDetalleView {
+  id: string;
+  nombre: string;
+  cedula: string;
+  sexo: "M" | "F" | "O";
+  telefono: string;
+  telefonoAlterno?: string;
+  municipioNombre?: string;
+  direccionCasa?: string;
+  direccionTrabajo?: string;
+  email?: string;
+  infoExtra?: string;
+  fechaRegistro: string;
+}
+
 function NuevaDeudaModal({
   clienteNombre,
+  deuda,
   onClose,
   onSave,
+  isSubmitting,
+  title = "Nueva Deuda",
+  submitLabel = "Registrar Deuda",
 }: {
   clienteNombre: string;
+  deuda?: DeudaView | null;
   onClose: () => void;
   onSave: (data: {
     monto: number;
     interes: number;
+    descuentoPeriodico: number;
     descripcion: string;
+    fechaInicio: string;
     vencimiento: string;
   }) => void;
+  isSubmitting: boolean;
+  title?: string;
+  submitLabel?: string;
 }) {
   const [form, setForm] = useState({
     monto: "",
     interes: "",
+    cuotaPeriodica: "0",
+    descuentoPeriodico: "",
     descripcion: "",
+    fechaInicio: todayISODate(),
     vencimiento: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    setForm({
+      monto: deuda ? String(deuda.monto) : "",
+      interes: deuda ? String(deuda.interesMensual) : "",
+      cuotaPeriodica: deuda ? String(deuda.cuotaPeriodica ?? 0) : "0",
+      descuentoPeriodico: deuda ? String(deuda.descuentoPeriodico ?? 0) : "",
+      descripcion: deuda ? deuda.descripcion : "",
+      fechaInicio: deuda ? deuda.fechaInicio : todayISODate(),
+      vencimiento: deuda?.fechaVencimiento ?? "",
+    });
+    setErrors({});
+  }, [deuda]);
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -66,6 +108,7 @@ function NuevaDeudaModal({
       e.interes = "El interés debe ser mayor a 0.";
     if (!form.descripcion.trim())
       e.descripcion = "La descripción es requerida.";
+    if (!form.fechaInicio) e.fechaInicio = "La fecha de inicio es requerida.";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -77,10 +120,14 @@ function NuevaDeudaModal({
       });
       return;
     }
+
     onSave({
       monto: Number(form.monto),
       interes: Number(form.interes),
+      cuotaPeriodica: Number(form.cuotaPeriodica || 0),
+      descuentoPeriodico: Number(form.descuentoPeriodico || 0),
       descripcion: form.descripcion,
+      fechaInicio: form.fechaInicio,
       vencimiento: form.vencimiento,
     });
   };
@@ -97,13 +144,13 @@ function NuevaDeudaModal({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 16 }}
         transition={{ duration: 0.2 }}
-        className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
+        className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto"
       >
         <h3 id="nueva-deuda-title" className="text-[#0F172A] mb-1">
-          Nueva Deuda
+          {title}
         </h3>
         <p className="text-[#64748B] text-sm mb-5">
-          Registrar nueva deuda para{" "}
+          {deuda ? "Editar deuda para" : "Registrar nueva deuda para"}{" "}
           <strong className="text-[#0F172A]">{clienteNombre}</strong>
         </p>
 
@@ -117,16 +164,15 @@ function NuevaDeudaModal({
             </label>
             <input
               id="nd-monto"
-              type="number"
-              min="0"
+              type="text"
+              inputMode="decimal"
               value={form.monto}
               onChange={(e) => {
-                setForm((p) => ({ ...p, monto: e.target.value }));
+                const val = e.target.value.replace(/[^0-9]/g, "");
+                setForm((p) => ({ ...p, monto: val }));
                 if (errors.monto) setErrors((p) => ({ ...p, monto: "" }));
               }}
-              className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] text-sm ${
-                errors.monto ? "border-[#DC2626]" : "border-[#E2E8F0]"
-              }`}
+              className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] text-sm ${errors.monto ? "border-[#DC2626]" : "border-[#E2E8F0]"}`}
               placeholder="500000"
               aria-required="true"
             />
@@ -134,6 +180,7 @@ function NuevaDeudaModal({
               <p className="text-[#DC2626] text-xs mt-1">{errors.monto}</p>
             )}
           </div>
+
           <div>
             <label
               htmlFor="nd-interes"
@@ -143,17 +190,15 @@ function NuevaDeudaModal({
             </label>
             <input
               id="nd-interes"
-              type="number"
-              min="0"
-              step="0.5"
+              type="text"
+              inputMode="decimal"
               value={form.interes}
               onChange={(e) => {
-                setForm((p) => ({ ...p, interes: e.target.value }));
+                const val = e.target.value.replace(/[^0-9.]/g, "");
+                setForm((p) => ({ ...p, interes: val }));
                 if (errors.interes) setErrors((p) => ({ ...p, interes: "" }));
               }}
-              className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] text-sm ${
-                errors.interes ? "border-[#DC2626]" : "border-[#E2E8F0]"
-              }`}
+              className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] text-sm ${errors.interes ? "border-[#DC2626]" : "border-[#E2E8F0]"}`}
               placeholder="10"
               aria-required="true"
             />
@@ -161,6 +206,7 @@ function NuevaDeudaModal({
               <p className="text-[#DC2626] text-xs mt-1">{errors.interes}</p>
             )}
           </div>
+
           <div>
             <label
               htmlFor="nd-desc"
@@ -177,9 +223,7 @@ function NuevaDeudaModal({
                 if (errors.descripcion)
                   setErrors((p) => ({ ...p, descripcion: "" }));
               }}
-              className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] text-sm ${
-                errors.descripcion ? "border-[#DC2626]" : "border-[#E2E8F0]"
-              }`}
+              className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] text-sm ${errors.descripcion ? "border-[#DC2626]" : "border-[#E2E8F0]"}`}
               placeholder="Ej: Gastos médicos, compra de maquinaria..."
               aria-required="true"
             />
@@ -189,6 +233,58 @@ function NuevaDeudaModal({
               </p>
             )}
           </div>
+
+          <div>
+            <label
+              htmlFor="nd-dp"
+              className="block text-[#334155] mb-1.5 text-sm"
+            >
+              Descuento periódico de tasa{" "}
+              <span className="text-[#94A3B8] text-xs">(opcional)</span>
+            </label>
+            <input
+              id="nd-dp"
+              type="text"
+              inputMode="decimal"
+              value={form.descuentoPeriodico}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9]/g, "");
+                setForm((p) => ({ ...p, descuentoPeriodico: val }));
+              }}
+              className="w-full px-4 py-3 border border-[#E2E8F0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] text-sm"
+              placeholder="300000"
+            />
+            <p className="text-[#94A3B8] text-xs mt-1">
+              Monto por el que disminuye el interés cuando el capital amortizado
+              alcanza este valor.
+            </p>
+          </div>
+
+          <div>
+            <label
+              htmlFor="nd-inicio"
+              className="block text-[#334155] mb-1.5 text-sm"
+            >
+              Fecha de inicio <span className="text-[#DC2626]">*</span>
+            </label>
+            <input
+              id="nd-inicio"
+              type="date"
+              value={form.fechaInicio}
+              onChange={(e) => {
+                setForm((p) => ({ ...p, fechaInicio: e.target.value }));
+                if (errors.fechaInicio)
+                  setErrors((p) => ({ ...p, fechaInicio: "" }));
+              }}
+              className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] text-sm ${errors.fechaInicio ? "border-[#DC2626]" : "border-[#E2E8F0]"}`}
+            />
+            {errors.fechaInicio && (
+              <p className="text-[#DC2626] text-xs mt-1">
+                {errors.fechaInicio}
+              </p>
+            )}
+          </div>
+
           <div>
             <label
               htmlFor="nd-venc"
@@ -212,15 +308,17 @@ function NuevaDeudaModal({
         <div className="flex gap-3 mt-6">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-3 border border-[#E2E8F0] text-[#334155] rounded-xl hover:bg-[#F8FAFC] transition-colors text-sm"
+            disabled={isSubmitting}
+            className="flex-1 px-4 py-3 border border-[#E2E8F0] text-[#334155] rounded-xl hover:bg-[#F8FAFC] transition-colors text-sm disabled:opacity-50"
           >
             Cancelar
           </button>
           <button
             onClick={handleSave}
-            className="flex-1 px-4 py-3 bg-[#2563EB] text-white rounded-xl hover:bg-[#1E3A8A] transition-colors text-sm"
+            disabled={isSubmitting}
+            className="flex-1 px-4 py-3 bg-[#2563EB] text-white rounded-xl hover:bg-[#1E3A8A] transition-colors text-sm disabled:opacity-50"
           >
-            Registrar Deuda
+            {isSubmitting ? "Guardando..." : submitLabel}
           </button>
         </div>
       </motion.div>
@@ -228,45 +326,48 @@ function NuevaDeudaModal({
   );
 }
 
-// ── DeudaCard ───────────────────────────────────────────────────────────────
-function DeudaCard({ deuda, estado }: { deuda: Deuda; estado: string }) {
-  const totalPagado = calcularTotalPagado(deuda);
-  const intereses = calcularInteresesGenerados(deuda);
-  const totalConIntereses = deuda.monto + intereses;
+function DeudaCard({
+  deuda,
+  estado,
+  onEdit,
+  onDelete,
+}: {
+  deuda: DeudaView;
+  estado: string;
+  onEdit: (deuda: DeudaView) => void;
+  onDelete: (deuda: DeudaView) => void;
+}) {
+  const totalPagado = deuda.totalPagado ?? calcularTotalPagado(deuda);
+  const saldo = deuda.saldoPendiente ?? Math.max(0, deuda.monto - totalPagado);
+  const capitalAmortizado = Math.max(
+    0,
+    deuda.monto - Math.max(0, deuda.capitalActual),
+  );
   const progreso = Math.min(
     100,
-    (totalPagado / Math.max(1, totalConIntereses)) * 100,
+    (capitalAmortizado / Math.max(1, deuda.monto)) * 100,
   );
-  const saldo = Math.max(0, totalConIntereses - totalPagado);
 
   const estadoStyles: Record<
     string,
-    { bg: string; text: string; label: string; icon: React.ReactNode }
+    { bg: string; text: string; label: string }
   > = {
     "al-dia": {
       bg: "border-[#BBF7D0]",
       text: "text-[#16A34A]",
       label: "Al día",
-      icon: <CheckCircle2 className="w-3.5 h-3.5" />,
     },
     riesgo: {
       bg: "border-[#FDE68A]",
       text: "text-[#F59E0B]",
       label: "En riesgo",
-      icon: <Clock className="w-3.5 h-3.5" />,
     },
     atrasado: {
       bg: "border-[#FECACA]",
       text: "text-[#DC2626]",
       label: "Atrasado",
-      icon: <AlertCircle className="w-3.5 h-3.5" />,
     },
-    pagada: {
-      bg: "border-[#E2E8F0]",
-      text: "text-[#64748B]",
-      label: "Pagada",
-      icon: <CheckCircle2 className="w-3.5 h-3.5" />,
-    },
+    pagada: { bg: "border-[#E2E8F0]", text: "text-[#64748B]", label: "Pagada" },
   };
 
   const s = estadoStyles[estado] ?? estadoStyles["al-dia"];
@@ -285,20 +386,46 @@ function DeudaCard({ deuda, estado }: { deuda: Deuda; estado: string }) {
             Desde {deuda.fechaInicio}
           </div>
         </div>
-        <span
-          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${s.text}`}
-          style={{
-            backgroundColor: `${s.text.replace("text-[", "").replace("]", "")}15`,
-          }}
-        >
-          {s.icon}
-          {s.label}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span
+            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${s.text}`}
+          >
+            {s.label}
+          </span>
+          <Tooltip content="Editar deuda">
+            <button
+              type="button"
+              className="p-1.5 hover:bg-[#F1F5F9] rounded-lg transition-colors text-[#64748B] hover:text-[#2563EB]"
+              aria-label="Editar deuda"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onEdit(deuda);
+              }}
+            >
+              <Edit2 className="w-4 h-4" aria-hidden="true" />
+            </button>
+          </Tooltip>
+          <Tooltip content="Eliminar deuda">
+            <button
+              type="button"
+              className="p-1.5 hover:bg-[#FEF2F2] rounded-lg transition-colors text-[#64748B] hover:text-[#DC2626]"
+              aria-label="Eliminar deuda"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onDelete(deuda);
+              }}
+            >
+              <Trash2 className="w-4 h-4" aria-hidden="true" />
+            </button>
+          </Tooltip>
+        </div>
       </div>
 
       <div className="mb-3">
         <div className="flex justify-between text-xs mb-1">
-          <span className="text-[#64748B]">Progreso de pago</span>
+          <span className="text-[#64748B]">Progreso de capital</span>
           <span className="text-[#0F172A] font-medium">
             {progreso.toFixed(1)}%
           </span>
@@ -347,21 +474,187 @@ function DeudaCard({ deuda, estado }: { deuda: Deuda; estado: string }) {
   );
 }
 
-// ── Main page ────────────────────────────────────────────────────────────────
 export function ClienteDetalle() {
   const { clienteId } = useParams();
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"info" | "activas" | "pagadas">(
     "info",
   );
   const [showNuevaDeuda, setShowNuevaDeuda] = useState(false);
+  const [deudaEnEdicion, setDeudaEnEdicion] = useState<DeudaView | null>(null);
+  const [isCreatingDebt, setIsCreatingDebt] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [cliente, setCliente] = useState<ClienteDetalleView | null>(null);
+  const [localDeudas, setLocalDeudas] = useState<DeudaView[]>([]);
+  const [deleteDeudaConfirm, setDeleteDeudaConfirm] = useState<DeudaView | null>(null);
+  const [isDeletingDeuda, setIsDeletingDeuda] = useState(false);
 
-  // Local state for debts — allows adding new debts without refreshing
-  const [localDeudas, setLocalDeudas] = useState<Deuda[]>(() =>
-    deudasData.filter((d) => d.clienteId === clienteId),
+  useEffect(() => {
+    const loadCliente = async () => {
+      if (!clienteId) return;
+      setLoading(true);
+
+      const response = await clientesAPI.getById(clienteId);
+      if (response.error || !response.data?.data) {
+        setLoading(false);
+        return;
+      }
+
+      const c = response.data.data as any;
+      setCliente({
+        id: c.id,
+        nombre: c.nombre,
+        cedula: c.cedula,
+        sexo: c.sexo ?? "M",
+        telefono: c.telefono,
+        telefonoAlterno: c.telefono_alterno ?? undefined,
+        municipioNombre: c.municipio_nombre ?? undefined,
+        direccionCasa: c.direccion_casa ?? undefined,
+        direccionTrabajo: c.direccion_trabajo ?? undefined,
+        email: c.email ?? undefined,
+        infoExtra: c.info_extra ?? undefined,
+        fechaRegistro: c.fecha_registro,
+      });
+
+      setLocalDeudas(
+        (Array.isArray(c.deudas) ? c.deudas : []).map((d: any) =>
+          toDeudaView(d),
+        ),
+      );
+      setLoading(false);
+    };
+
+    void loadCliente();
+  }, [clienteId]);
+
+  const deudasActivas = useMemo(
+    () => localDeudas.filter((d) => d.estado === "activa"),
+    [localDeudas],
+  );
+  const deudasPagadas = useMemo(
+    () => localDeudas.filter((d) => d.estado === "pagada"),
+    [localDeudas],
   );
 
-  const cliente = clientesData.find((c) => c.id === clienteId);
+  const totalPrestadoCliente = useMemo(
+    () => localDeudas.reduce((s, d) => s + d.monto, 0),
+    [localDeudas],
+  );
+  const totalRecuperadoCliente = useMemo(
+    () => localDeudas.reduce((s, d) => s + (d.totalPagado ?? 0), 0),
+    [localDeudas],
+  );
+  const totalInteresesCliente = useMemo(
+    () => deudasActivas.reduce((s, d) => s + (d.interesesAcumulados ?? 0), 0),
+    [deudasActivas],
+  );
+
+  const handleGuardarDeuda = (data: {
+    monto: number;
+    interes: number;
+    descuentoPeriodico: number;
+    descripcion: string;
+    fechaInicio: string;
+    vencimiento: string;
+  }) => {
+    if (!cliente) return;
+
+    setIsCreatingDebt(true);
+    const request = deudaEnEdicion
+      ? deudasAPI.update(deudaEnEdicion.id, {
+          cliente_id: cliente.id,
+          monto: data.monto,
+          interes_mensual: data.interes,
+          descuento_periodico: data.descuentoPeriodico,
+          descripcion: data.descripcion,
+          fecha_inicio: data.fechaInicio,
+          fecha_vencimiento: data.vencimiento || undefined,
+          estado: deudaEnEdicion.estado,
+        })
+      : clientesAPI.createDebt(cliente.id, {
+          monto: data.monto,
+          interes_mensual: data.interes,
+          descuento_periodico: data.descuentoPeriodico,
+          descripcion: data.descripcion,
+          fecha_inicio: data.fechaInicio,
+          fecha_vencimiento: data.vencimiento || undefined,
+          estado: "activa",
+        });
+
+    request
+      .then((response) => {
+        if (response.error || !response.data?.data) {
+          toast.error(
+            deudaEnEdicion
+              ? "No fue posible actualizar la deuda"
+              : "No fue posible registrar la deuda",
+            {
+            description: response.error || "Intenta de nuevo.",
+            },
+          );
+          return;
+        }
+
+        const deudaActualizada = toDeudaView(response.data.data);
+        setLocalDeudas((prev) => {
+          if (deudaEnEdicion) {
+            return prev.map((item) =>
+              item.id === deudaEnEdicion.id ? deudaActualizada : item,
+            );
+          }
+          return [...prev, deudaActualizada];
+        });
+        toast.success(
+          deudaEnEdicion ? "Deuda actualizada" : "Deuda registrada",
+          {
+            description: `${deudaEnEdicion ? "La deuda" : `Deuda de $${data.monto.toLocaleString("es-CO")}`} ${deudaEnEdicion ? "se actualizó" : `para ${cliente.nombre}`}.`,
+          },
+        );
+        setShowNuevaDeuda(false);
+        setDeudaEnEdicion(null);
+        setActiveTab("activas");
+      })
+      .finally(() => {
+        setIsCreatingDebt(false);
+      });
+  };
+
+  const handleEditarDeuda = (deuda: DeudaView) => {
+    setDeudaEnEdicion(deuda);
+    setShowNuevaDeuda(true);
+  };
+
+  const handleEliminarDeuda = (deuda: DeudaView) => {
+    setDeleteDeudaConfirm(deuda);
+  };
+
+  const confirmDeleteDeuda = async () => {
+    if (!deleteDeudaConfirm) return;
+    setIsDeletingDeuda(true);
+
+    const response = await deudasAPI.remove(deleteDeudaConfirm.id);
+    if (response.error) {
+      toast.error("No fue posible eliminar la deuda", {
+        description: response.error,
+      });
+      setIsDeletingDeuda(false);
+      return;
+    }
+
+    setLocalDeudas((prev) => prev.filter((item) => item.id !== deleteDeudaConfirm.id));
+    toast.success("Deuda eliminada", {
+      description: `"${deleteDeudaConfirm.descripcion}" fue eliminada correctamente.`,
+    });
+    setDeleteDeudaConfirm(null);
+    setIsDeletingDeuda(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="max-w-[1400px] mx-auto px-6 py-8 text-center">
+        <p className="text-[#64748B]">Cargando cliente...</p>
+      </div>
+    );
+  }
 
   if (!cliente) {
     return (
@@ -376,45 +669,6 @@ export function ClienteDetalle() {
       </div>
     );
   }
-
-  const allDeudas = localDeudas;
-  const deudasActivas = allDeudas.filter((d) => d.estado === "activa");
-  const deudasPagadas = allDeudas.filter((d) => d.estado === "pagada");
-
-  const totalPrestadoCliente = allDeudas.reduce((s, d) => s + d.monto, 0);
-  const totalRecuperadoCliente = allDeudas.reduce(
-    (s, d) => s + calcularTotalPagado(d),
-    0,
-  );
-  const totalInteresesCliente = deudasActivas.reduce(
-    (s, d) => s + calcularInteresesGenerados(d),
-    0,
-  );
-
-  const handleNuevaDeuda = (data: {
-    monto: number;
-    interes: number;
-    descripcion: string;
-    vencimiento: string;
-  }) => {
-    const newDeuda: Deuda = {
-      id: `d_new_${Date.now()}`,
-      clienteId: clienteId!,
-      monto: data.monto,
-      interesMensual: data.interes,
-      descripcion: data.descripcion,
-      fechaInicio: new Date().toISOString().slice(0, 10),
-      fechaVencimiento: data.vencimiento || undefined,
-      estado: "activa",
-      abonos: [],
-    };
-    setLocalDeudas((prev) => [...prev, newDeuda]);
-    toast.success("Deuda registrada", {
-      description: `Deuda de $${data.monto.toLocaleString("es-CO")} para ${cliente.nombre}.`,
-    });
-    setShowNuevaDeuda(false);
-    setActiveTab("activas");
-  };
 
   const tabs: { key: "info" | "activas" | "pagadas"; label: string }[] = [
     { key: "info", label: "Información" },
@@ -433,7 +687,6 @@ export function ClienteDetalle() {
         Volver a Cartera
       </Link>
 
-      {/* Header card */}
       <div className="bg-white rounded-2xl shadow-sm border border-[#E2E8F0] p-6 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
           <div className="flex items-center gap-4">
@@ -455,7 +708,7 @@ export function ClienteDetalle() {
                 </span>
                 <span className="flex items-center gap-1">
                   <MapPin className="w-3.5 h-3.5" aria-hidden="true" />
-                  {getMunicipioNombre(cliente.municipioId)}
+                  {cliente.municipioNombre || "—"}
                 </span>
               </div>
             </div>
@@ -484,7 +737,6 @@ export function ClienteDetalle() {
           </div>
         </div>
 
-        {/* Mini stats */}
         <div className="grid grid-cols-3 gap-4 mb-6 p-4 bg-[#F8FAFC] rounded-xl">
           <div>
             <div className="text-[#64748B] text-xs mb-0.5">Total Prestado</div>
@@ -510,7 +762,6 @@ export function ClienteDetalle() {
           </div>
         </div>
 
-        {/* Tabs */}
         <div
           className="flex gap-1 border-b border-[#E2E8F0] overflow-x-auto"
           role="tablist"
@@ -521,11 +772,7 @@ export function ClienteDetalle() {
               role="tab"
               aria-selected={activeTab === tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`px-4 py-2.5 border-b-2 text-sm transition-colors whitespace-nowrap ${
-                activeTab === tab.key
-                  ? "border-[#2563EB] text-[#2563EB] font-medium"
-                  : "border-transparent text-[#64748B] hover:text-[#0F172A]"
-              }`}
+              className={`px-4 py-2.5 border-b-2 text-sm transition-colors whitespace-nowrap ${activeTab === tab.key ? "border-[#2563EB] text-[#2563EB] font-medium" : "border-transparent text-[#64748B] hover:text-[#0F172A]"}`}
             >
               {tab.label}
             </button>
@@ -533,7 +780,6 @@ export function ClienteDetalle() {
         </div>
       </div>
 
-      {/* Tab content */}
       {activeTab === "info" && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
@@ -578,7 +824,11 @@ export function ClienteDetalle() {
               <div>
                 <div className="text-[#64748B] text-xs mb-0.5">Sexo</div>
                 <div className="text-[#0F172A] text-sm">
-                  {cliente.sexo === "M" ? "Masculino" : "Femenino"}
+                  {cliente.sexo === "M"
+                    ? "Masculino"
+                    : cliente.sexo === "F"
+                      ? "Femenino"
+                      : "Otro"}
                 </div>
               </div>
               <div>
@@ -601,7 +851,7 @@ export function ClienteDetalle() {
               <div>
                 <div className="text-[#64748B] text-xs mb-0.5">Municipio</div>
                 <div className="text-[#0F172A] text-sm">
-                  {getMunicipioNombre(cliente.municipioId)}
+                  {cliente.municipioNombre || "—"}
                 </div>
               </div>
               <div>
@@ -610,7 +860,7 @@ export function ClienteDetalle() {
                   Dirección Casa
                 </div>
                 <div className="text-[#0F172A] text-sm">
-                  {cliente.direccionCasa}
+                  {cliente.direccionCasa || "—"}
                 </div>
               </div>
               {cliente.direccionTrabajo && (
@@ -658,13 +908,15 @@ export function ClienteDetalle() {
               <p className="text-[#64748B]">
                 No hay deudas activas para este cliente.
               </p>
-              <button
-                onClick={() => setShowNuevaDeuda(true)}
-                className="mt-4 inline-flex items-center gap-2 bg-[#2563EB] text-white px-4 py-2.5 rounded-xl hover:bg-[#1E3A8A] transition-colors text-sm"
-              >
-                <Plus className="w-4 h-4" aria-hidden="true" />
-                Registrar Nueva Deuda
-              </button>
+              <Tooltip content="Registrar una deuda activa para este cliente">
+                <button
+                  onClick={() => setShowNuevaDeuda(true)}
+                  className="mt-4 inline-flex items-center gap-2 bg-[#2563EB] text-white px-4 py-2.5 rounded-xl hover:bg-[#1E3A8A] transition-colors text-sm"
+                >
+                  <Plus className="w-4 h-4" aria-hidden="true" />
+                  Registrar Nueva Deuda
+                </button>
+              </Tooltip>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -673,6 +925,8 @@ export function ClienteDetalle() {
                   key={d.id}
                   deuda={d}
                   estado={calcularEstadoDeuda(d)}
+                  onEdit={handleEditarDeuda}
+                  onDelete={handleEliminarDeuda}
                 />
               ))}
             </div>
@@ -740,7 +994,7 @@ export function ClienteDetalle() {
                           {d.interesMensual}%/mes
                         </td>
                         <td className="py-3 px-5 text-right text-[#16A34A] text-sm font-medium">
-                          {fmt(calcularTotalPagado(d))}
+                          {fmt(d.totalPagado ?? 0)}
                         </td>
                         <td className="py-3 px-5 text-center hidden sm:table-cell">
                           <span className="inline-flex items-center justify-center w-7 h-7 bg-[#F0FDF4] text-[#16A34A] rounded-lg text-xs font-medium">
@@ -760,15 +1014,35 @@ export function ClienteDetalle() {
         </motion.div>
       )}
 
-      {/* Nueva Deuda Modal */}
       {showNuevaDeuda && (
         <NuevaDeudaModal
           clienteNombre={cliente.nombre}
-          onClose={() => setShowNuevaDeuda(false)}
-          onSave={handleNuevaDeuda}
+          deuda={deudaEnEdicion}
+          onClose={() => {
+            setShowNuevaDeuda(false);
+            setDeudaEnEdicion(null);
+          }}
+          onSave={handleGuardarDeuda}
+          isSubmitting={isCreatingDebt}
+          title={deudaEnEdicion ? "Editar Deuda" : "Nueva Deuda"}
+          submitLabel={deudaEnEdicion ? "Guardar Cambios" : "Registrar Deuda"}
         />
       )}
+
+      <DeleteConfirmModal
+        isOpen={deleteDeudaConfirm !== null}
+        isLoading={isDeletingDeuda}
+        title="Confirmar eliminación"
+        message={
+          deleteDeudaConfirm
+            ? `¿Deseas eliminar la deuda "${deleteDeudaConfirm.descripcion}"? Esta acción no se puede deshacer.`
+            : ""
+        }
+        onConfirm={confirmDeleteDeuda}
+        onCancel={() => setDeleteDeudaConfirm(null)}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+      />
     </div>
   );
 }
-

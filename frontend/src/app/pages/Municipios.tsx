@@ -11,11 +11,15 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import toast from "../../lib/toast";
-import { municipiosData, Municipio } from "../data/mockData";
 import { Tooltip } from "../components/ui/Tooltip";
+import {
+  municipiosAPI,
+  useOperarioData,
+  type MunicipioView,
+} from "../services/operario";
 
 export function Municipios() {
-  const [municipios, setMunicipios] = useState<Municipio[]>(municipiosData);
+  const { municipios, refreshMunicipios } = useOperarioData();
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -32,60 +36,68 @@ export function Municipios() {
     setShowForm(true);
   };
 
-  const openEdit = (m: Municipio) => {
+  const openEdit = (m: MunicipioView) => {
     setEditingId(m.id);
     setFormNombre(m.nombre);
     setShowForm(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const trimmed = formNombre.trim();
     if (!trimmed) {
       toast.error("El nombre del municipio es requerido.");
       return;
     }
-    if (editingId) {
-      setMunicipios((prev) =>
-        prev.map((m) => (m.id === editingId ? { ...m, nombre: trimmed } : m)),
-      );
-      toast.success("Municipio actualizado", {
-        description: `"${trimmed}" fue editado correctamente.`,
+    const response = editingId
+      ? await municipiosAPI.update(editingId, { nombre: trimmed })
+      : await municipiosAPI.create({ nombre: trimmed, activo: true });
+
+    if (response.error) {
+      toast.error("No fue posible guardar el municipio", {
+        description: response.error,
       });
-    } else {
-      const newMunicipio: Municipio = {
-        id: `m${Date.now()}`,
-        nombre: trimmed,
-        activo: true,
-      };
-      setMunicipios((prev) => [...prev, newMunicipio]);
-      toast.success("Municipio creado", {
-        description: `"${trimmed}" fue agregado al sistema.`,
-      });
+      return;
     }
+    await refreshMunicipios();
+    toast.success(editingId ? "Municipio actualizado" : "Municipio creado", {
+      description: `"${trimmed}" fue ${editingId ? "editado" : "agregado"} correctamente.`,
+    });
     setShowForm(false);
     setFormNombre("");
     setEditingId(null);
   };
 
-  const handleToggleActivo = (id: string) => {
-    setMunicipios((prev) =>
-      prev.map((m) => {
-        if (m.id !== id) return m;
-        const updated = { ...m, activo: !m.activo };
-        toast.success(
-          updated.activo ? "Municipio activado" : "Municipio desactivado",
-          {
-            description: `"${m.nombre}" fue ${updated.activo ? "activado" : "desactivado"}.`,
-          },
-        );
-        return updated;
-      }),
+  const handleToggleActivo = async (municipio: MunicipioView) => {
+    const response = await municipiosAPI.update(municipio.id, {
+      activo: !municipio.activo,
+    });
+    if (response.error) {
+      toast.error("No fue posible actualizar el municipio", {
+        description: response.error,
+      });
+      return;
+    }
+    await refreshMunicipios();
+    toast.success(
+      response.data?.data.activo
+        ? "Municipio activado"
+        : "Municipio desactivado",
+      {
+        description: `"${municipio.nombre}" fue ${response.data?.data.activo ? "activado" : "desactivado"}.`,
+      },
     );
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     const m = municipios.find((x) => x.id === id);
-    setMunicipios((prev) => prev.filter((x) => x.id !== id));
+    const response = await municipiosAPI.remove(id);
+    if (response.error) {
+      toast.error("No fue posible eliminar el municipio", {
+        description: response.error,
+      });
+      return;
+    }
+    await refreshMunicipios();
     setDeleteConfirm(null);
     toast.success("Municipio eliminado", {
       description: `"${m?.nombre}" fue eliminado del sistema.`,
@@ -252,7 +264,7 @@ export function Municipios() {
                           }
                         >
                           <button
-                            onClick={() => handleToggleActivo(municipio.id)}
+                            onClick={() => void handleToggleActivo(municipio)}
                             className={`p-2 rounded-lg transition-colors ${
                               municipio.activo
                                 ? "hover:bg-[#FFFBEB] text-[#64748B] hover:text-[#F59E0B]"
@@ -404,7 +416,7 @@ export function Municipios() {
                   Cancelar
                 </button>
                 <button
-                  onClick={() => handleDelete(deleteConfirm)}
+                  onClick={() => void handleDelete(deleteConfirm)}
                   className="flex-1 px-4 py-3 bg-[#DC2626] text-white rounded-xl hover:bg-[#B91C1C] transition-colors"
                 >
                   Eliminar

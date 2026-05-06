@@ -20,7 +20,10 @@ export const usersAPI = {
   listUsers: async () => {
     try {
       console.log("[usersAPI] Fetching users list");
-      const response = await apiClient.get<UserProfile[]>("/api/users/list/");
+      const response = await apiClient.get<{
+        success: boolean;
+        data: UserProfile[];
+      }>("/api/users/list/");
       if (response.error) {
         console.error("[usersAPI] Failed to fetch users:", response.error);
         logger.error(
@@ -31,13 +34,16 @@ export const usersAPI = {
       } else {
         console.log(
           "[usersAPI] Users fetched successfully:",
-          response.data?.length,
+          response.data?.data?.length,
         );
         logger.info("usersAPI", "Users fetched successfully", {
-          count: response.data?.length,
+          count: response.data?.data?.length,
         });
       }
-      return response;
+      return {
+        data: response.data?.data,
+        error: response.error,
+      };
     } catch (error) {
       console.error("[usersAPI] Error fetching users:", error);
       logger.error("usersAPI", "Error fetching users", error as Error);
@@ -110,7 +116,14 @@ export const usersAPI = {
   },
 
   // Edit another user (admin only)
-  editUser: async (userId: string, userData: Partial<{ nombre: string; rol: "ADMIN" | "OPERARIO"; email: string }>) => {
+  editUser: async (
+    userId: string,
+    userData: Partial<{
+      nombre: string;
+      rol: "ADMIN" | "OPERARIO";
+      email: string;
+    }>,
+  ) => {
     try {
       logger.info("usersAPI", "Editing user", { userId, ...userData });
       const response = await apiClient.put<UserProfile>(
@@ -201,7 +214,10 @@ export const usersAPI = {
 
       console.log("[usersAPI] Update config response:", response);
       if (response.error) {
-        console.error("[usersAPI] Error updating system config:", response.error);
+        console.error(
+          "[usersAPI] Error updating system config:",
+          response.error,
+        );
         logger.error(
           "usersAPI",
           "Failed to update system config",

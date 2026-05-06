@@ -29,13 +29,17 @@ backend/apps/operario/
 ## Data Models
 
 ### 1. Municipio
+
 Represents geographic areas served by the operario.
+
 - Primary Key: `id` (CharField, Supabase-compatible)
 - Fields: nombre (unique), activo (indexed)
 - Purpose: Filter clients and debts by geographic region
 
 ### 2. Cliente
+
 Loan client/customer information.
+
 - Primary Key: `id` (CharField)
 - Relations: ForeignKey to Municipio (PROTECT)
 - Key Fields: cedula (unique, indexed), email (indexed), fecha_registro
@@ -43,7 +47,9 @@ Loan client/customer information.
 - Purpose: Store customer data with contact information
 
 ### 3. Deuda
+
 Loan/debt records.
+
 - Primary Key: `id` (CharField)
 - Relations: ForeignKey to Cliente (CASCADE)
 - Key Fields: monto, interes_mensual, estado (indexed), fecha_vencimiento (indexed)
@@ -52,21 +58,27 @@ Loan/debt records.
 - Purpose: Track debt obligations
 
 ### 4. Abono
+
 Debt payments/installments.
+
 - Primary Key: `id` (CharField)
 - Relations: ForeignKey to Deuda (CASCADE)
 - Key Fields: monto, fecha (indexed), atrasado
 - Purpose: Track individual payments on debts
 
 ### 5. DeudaPersonal
+
 Operator's personal debts (credit cards, loans, etc.).
+
 - Primary Key: `id` (CharField)
 - Key Fields: concepto, acreedor, monto, interes_mensual
 - Calculated Properties: saldo_pendiente
 - Purpose: Track operator's personal obligations
 
 ### 6. PagoPersonal
+
 Operator's personal debt payments.
+
 - Primary Key: `id` (CharField)
 - Relations: ForeignKey to DeudaPersonal (CASCADE)
 - Key Fields: monto, fecha (indexed), atrasado
@@ -75,6 +87,7 @@ Operator's personal debt payments.
 ## API Endpoints Design
 
 ### Principle: Modular & RESTful
+
 ```
 /municipios/                          # List municipalities
 /municipios/{id}/                     # Get municipality + stats
@@ -91,6 +104,7 @@ Operator's personal debt payments.
 ```
 
 ### Query Parameters
+
 - **Pagination**: `page`, `page_size` (default: 1, 10)
 - **Filtering**: `search`, `municipio_id`, `estado`, `activo`
 - **Sorting**: Handled at serializer level (can extend)
@@ -100,7 +114,9 @@ Operator's personal debt payments.
 The `services/__init__.py` module contains business logic:
 
 ### EstadisticasService
+
 Handles dashboard and statistical calculations:
+
 - `get_dashboard_stats()`: Full statistics summary
 - `get_cartera_stats()`: Portfolio-specific stats
 - `get_municipios_stats()`: Municipality breakdown
@@ -109,46 +125,57 @@ Handles dashboard and statistical calculations:
 **Design**: Separated from views for testability and reusability
 
 ### ClienteService
+
 Client-specific operations:
+
 - `get_cliente_with_stats()`: Client + calculated fields
 - `get_clientes_by_municipio()`: Filtered queryset
 - `search_clientes()`: Full-text search
 
 ### DeudaService
+
 Debt operations:
+
 - `get_deudas_activas()`: Active debts queryset
 - `get_deudas_atrasadas()`: Overdue debts queryset
 - `get_deuda_with_abonos()`: Debt with payment history
 
 ### FinanzasPersonalesService
+
 Personal finance operations:
+
 - `get_personal_finances_summary()`: Personal finance stats
 - `get_personal_debts_by_status()`: Personal debts breakdown
 
 ## Security Implementation
 
 ### Authentication
+
 - All endpoints require `@permission_classes([IsAuthenticated])`
 - JWT token validation via custom authentication class
 - Token includes: `sub` (user_id), `email`, `iat`, `exp`
 
 ### Authorization
+
 - Role-based access control via UserProfile.rol
 - Operario users see only their portfolio data (future multi-operario support)
 - Admin users manage operario records
 
 ### Input Validation
+
 1. **Serializer-level**: DRF validators on all input fields
 2. **Query parameter-level**: Type checking and sanitization
 3. **Database-level**: Model validators (MinValueValidator, unique constraints)
 
 ### Query Safety
+
 - No raw SQL queries
 - All queries use Django ORM QuerySet API
 - No string concatenation in filters
 - Parameterized queries via F() and Q() expressions
 
 ### Data Protection
+
 - Sensitive data (cedula) indexed but not logged
 - Error responses don't leak internal details
 - CORS configured to allow only approved origins
@@ -159,6 +186,7 @@ Personal finance operations:
 Properties are calculated at the model and serializer level:
 
 ### Model Level (for view logic)
+
 ```python
 @property
 def saldo_pendiente(self):
@@ -168,6 +196,7 @@ def saldo_pendiente(self):
 ```
 
 ### Serializer Level (for API responses)
+
 ```python
 def get_saldo_pendiente(self, obj):
     """Serialized to string (Decimal precision)"""
@@ -175,6 +204,7 @@ def get_saldo_pendiente(self, obj):
 ```
 
 This dual approach ensures:
+
 1. Accuracy (database queries where needed)
 2. Precision (Decimal to string conversion for JSON)
 3. Performance (calculations at appropriate layer)
@@ -182,18 +212,21 @@ This dual approach ensures:
 ## Pagination & Performance
 
 ### Pagination Strategy
+
 ```python
 paginator = Paginator(queryset, page_size)
 page_obj = paginator.get_page(page)
 ```
 
 ### Query Optimization
+
 1. Use `select_related()` for foreign keys (future)
 2. Use `prefetch_related()` for reverse relations (future)
 3. Indexes on frequently queried fields (municipio, cliente, estado, fecha)
 4. Distinct() used when filtering many-to-many joins
 
 ### Caching Opportunities
+
 - Dashboard stats (update every 5 minutes)
 - Municipio list (rarely changes)
 - Client search (use database full-text search for scale)
@@ -213,6 +246,7 @@ except Exception as e:
 ```
 
 Benefits:
+
 - No stack traces exposed to clients
 - Detailed logs for debugging
 - Graceful degradation
@@ -233,16 +267,19 @@ Benefits:
 ## Testing Strategy
 
 ### Unit Tests (Not yet implemented)
+
 - Test service methods in isolation
 - Mock database queries
 - Test serializer validation
 
 ### Integration Tests
+
 - Test full API endpoint flow
 - Use test fixtures with mock data
 - Verify correct status codes and response format
 
 ### Performance Tests
+
 - Load test pagination
 - Test with large datasets
 - Monitor query count per request
@@ -261,6 +298,7 @@ Benefits:
 ## Maintenance
 
 ### Adding New Endpoint
+
 1. Add method to views.py
 2. Add URL pattern to urls.py
 3. Create serializer if needed
@@ -269,6 +307,7 @@ Benefits:
 6. Commit with descriptive message
 
 ### Modifying Models
+
 1. Update models.py
 2. Create migration: `python manage.py makemigrations apps.operario`
 3. Apply migration: `python manage.py migrate apps.operario`
@@ -276,6 +315,7 @@ Benefits:
 5. Update API documentation
 
 ### Debugging Tips
+
 - Check logs for error details
 - Use Django shell: `python manage.py shell`
 - Test queries in shell: `from apps.operario.models import *`

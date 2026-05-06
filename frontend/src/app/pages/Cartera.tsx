@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Search,
   Plus,
@@ -15,37 +15,16 @@ import { Link, useNavigate } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import toast from "../../lib/toast";
 import {
-  clientesData,
-  municipiosData,
-  deudasData,
   calcularEstadoCliente,
   getMunicipioNombre,
-  Cliente,
-} from "../data/mockData";
+  useOperarioData,
+  type ClienteView,
+  type MunicipioView,
+  type DeudaView,
+} from "../services/operario";
 import { Tooltip } from "../components/ui/Tooltip";
 
 const PAGE_SIZE = 8;
-
-// ── Summary helpers ──────────────────────────────────────────────────────────
-const totalCapital = deudasData.reduce((s, d) => s + d.monto, 0);
-const totalRecuperado = deudasData.reduce(
-  (s, d) => s + d.abonos.reduce((a, b) => a + b.monto, 0),
-  0,
-);
-const totalSaldo = deudasData
-  .filter((d) => d.estado === "activa")
-  .reduce((s, d) => {
-    const pagado = d.abonos.reduce((a, b) => a + b.monto, 0);
-    return s + Math.max(0, d.monto - pagado);
-  }, 0);
-const allAbonos = deudasData.flatMap((d) => d.abonos);
-const pctCumplimiento =
-  allAbonos.length > 0
-    ? (
-        (allAbonos.filter((a) => !a.atrasado).length / allAbonos.length) *
-        100
-      ).toFixed(1)
-    : "100.0";
 
 function fmtCOP(val: number): string {
   if (val >= 1_000_000) return `$${(val / 1_000_000).toFixed(1)}M`;
@@ -54,17 +33,51 @@ function fmtCOP(val: number): string {
 }
 
 export function Cartera() {
+  const { clientes, municipios, deudas, loading } = useOperarioData();
   const navigate = useNavigate();
-  const [clientes, setClientes] = useState<Cliente[]>(clientesData);
+  const [clientesState, setClientesState] = useState<ClienteView[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [municipioFilter, setMunicipioFilter] = useState("todos");
   const [currentPage, setCurrentPage] = useState(1);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
 
-  const municipiosActivos = municipiosData.filter((m) => m.activo);
+  const municipiosActivos = municipios.filter((m) => m.activo);
 
-  const filtered = clientes.filter((c) => {
+  useEffect(() => {
+    setClientesState(clientes);
+  }, [clientes]);
+
+  const summary = useMemo(() => {
+    const totalCapital = deudas.reduce((s, d) => s + d.monto, 0);
+    const totalRecuperado = deudas.reduce(
+      (s, d) => s + d.abonos.reduce((a, b) => a + b.monto, 0),
+      0,
+    );
+    const totalSaldo = deudas
+      .filter((d) => d.estado === "activa")
+      .reduce((s, d) => {
+        const pagado = d.abonos.reduce((a, b) => a + b.monto, 0);
+        return s + Math.max(0, d.monto - pagado);
+      }, 0);
+    const allAbonos = deudas.flatMap((d) => d.abonos);
+    const pctCumplimiento =
+      allAbonos.length > 0
+        ? (
+            (allAbonos.filter((a) => !a.atrasado).length / allAbonos.length) *
+            100
+          ).toFixed(1)
+        : "100.0";
+
+    return {
+      totalCapital,
+      totalRecuperado,
+      totalSaldo,
+      pctCumplimiento,
+    };
+  }, [deudas]);
+
+  const filtered = clientesState.filter((c) => {
     const matchSearch =
       c.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.cedula.includes(searchTerm);
@@ -92,8 +105,8 @@ export function Cartera() {
   const confirmDelete = (id: string) => setDeleteId(id);
 
   const handleDelete = () => {
-    const c = clientes.find((x) => x.id === deleteId);
-    setClientes((prev) => prev.filter((x) => x.id !== deleteId));
+    const c = clientesState.find((x) => x.id === deleteId);
+    setClientesState((prev) => prev.filter((x) => x.id !== deleteId));
     setDeleteId(null);
     toast.success("Cliente eliminado", {
       description: `"${c?.nombre}" fue eliminado de la cartera.`,
@@ -127,11 +140,14 @@ export function Cartera() {
   };
 
   const getDeudasActivas = (clienteId: string) =>
-    deudasData.filter((d) => d.clienteId === clienteId && d.estado === "activa")
+    deudas.filter((d) => d.clienteId === clienteId && d.estado === "activa")
       .length;
 
   return (
     <div className="max-w-[1400px] mx-auto px-4 lg:px-6 py-8">
+      {loading && (
+        <div className="mb-4 text-[#64748B] text-sm">Cargando cartera...</div>
+      )}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
@@ -159,25 +175,31 @@ export function Cartera() {
         <div className="bg-white rounded-2xl shadow-sm border border-[#E2E8F0] p-4">
           <div className="text-[#64748B] text-xs mb-1">Capital Total</div>
           <div className="text-[#0F172A] font-semibold text-lg truncate">
-            {fmtCOP(totalCapital)}
+            {fmtCOP(summary.totalCapital)}
           </div>
           <div className="text-[#94A3B8] text-xs">
-            {deudasData.length} préstamos totales
+            {deudas.length} préstamos totales
           </div>
         </div>
         <div className="bg-white rounded-2xl shadow-sm border border-[#E2E8F0] p-4">
           <div className="text-[#64748B] text-xs mb-1">Total Recuperado</div>
           <div className="text-[#16A34A] font-semibold text-lg truncate">
-            {fmtCOP(totalRecuperado)}
+            {fmtCOP(summary.totalRecuperado)}
           </div>
           <div className="text-[#94A3B8] text-xs">
-            {((totalRecuperado / totalCapital) * 100).toFixed(1)}% del capital
+            {summary.totalCapital > 0
+              ? (
+                  (summary.totalRecuperado / summary.totalCapital) *
+                  100
+                ).toFixed(1)
+              : "0.0"}
+            % del capital
           </div>
         </div>
         <div className="bg-white rounded-2xl shadow-sm border border-[#E2E8F0] p-4">
           <div className="text-[#64748B] text-xs mb-1">Saldo Pendiente</div>
           <div className="text-[#DC2626] font-semibold text-lg truncate">
-            {fmtCOP(totalSaldo)}
+            {fmtCOP(summary.totalSaldo)}
           </div>
           <div className="text-[#94A3B8] text-xs">Deudas activas</div>
         </div>
@@ -186,7 +208,7 @@ export function Cartera() {
             Tasa de Cumplimiento
           </div>
           <div className="text-[#2563EB] font-semibold text-lg">
-            {pctCumplimiento}%
+            {summary.pctCumplimiento}%
           </div>
           <div className="text-[#94A3B8] text-xs">Abonos a tiempo</div>
         </div>
@@ -278,7 +300,7 @@ export function Cartera() {
             <tbody>
               <AnimatePresence mode="wait">
                 {paginated.map((cliente) => {
-                  const estado = calcularEstadoCliente(cliente.id);
+                  const estado = calcularEstadoCliente(cliente, deudas);
                   const deudasActivas = getDeudasActivas(cliente.id);
                   return (
                     <motion.tr
@@ -302,7 +324,7 @@ export function Cartera() {
                         {cliente.telefono}
                       </td>
                       <td className="py-4 px-4 text-[#64748B] text-sm hidden sm:table-cell">
-                        {getMunicipioNombre(cliente.municipioId)}
+                        {getMunicipioNombre(cliente.municipioId, municipios)}
                       </td>
                       <td className="py-4 px-4 text-center">
                         <span className="inline-flex items-center justify-center w-7 h-7 bg-[#EFF6FF] text-[#2563EB] rounded-lg text-sm font-medium">
@@ -374,12 +396,14 @@ export function Cartera() {
                       No se encontraron clientes.
                     </p>
                     {searchTerm && (
-                      <button
-                        onClick={() => handleSearch("")}
-                        className="text-[#2563EB] text-sm mt-2 hover:underline"
-                      >
-                        Limpiar búsqueda
-                      </button>
+                      <Tooltip content="Quitar filtros de búsqueda">
+                        <button
+                          onClick={() => handleSearch("")}
+                          className="text-[#2563EB] text-sm mt-2 hover:underline"
+                        >
+                          Limpiar búsqueda
+                        </button>
+                      </Tooltip>
                     )}
                   </td>
                 </tr>
@@ -409,19 +433,20 @@ export function Cartera() {
                 </button>
               </Tooltip>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setCurrentPage(p)}
-                  aria-label={`Ir a página ${p}`}
-                  aria-current={p === currentPage ? "page" : undefined}
-                  className={`w-8 h-8 rounded-lg text-sm transition-colors ${
-                    p === currentPage
-                      ? "bg-[#2563EB] text-white"
-                      : "hover:bg-[#F1F5F9] text-[#334155]"
-                  }`}
-                >
-                  {p}
-                </button>
+                <Tooltip key={p} content={`Ir a la página ${p}`}>
+                  <button
+                    onClick={() => setCurrentPage(p)}
+                    aria-label={`Ir a página ${p}`}
+                    aria-current={p === currentPage ? "page" : undefined}
+                    className={`w-8 h-8 rounded-lg text-sm transition-colors ${
+                      p === currentPage
+                        ? "bg-[#2563EB] text-white"
+                        : "hover:bg-[#F1F5F9] text-[#334155]"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                </Tooltip>
               ))}
               <Tooltip content="Página siguiente">
                 <button
@@ -476,18 +501,22 @@ export function Cartera() {
                 y todos sus registros. No se puede deshacer.
               </p>
               <div className="flex gap-3">
-                <button
-                  onClick={() => setDeleteId(null)}
-                  className="flex-1 px-4 py-3 border border-[#E2E8F0] text-[#334155] rounded-xl hover:bg-[#F8FAFC] transition-colors text-sm"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleDelete}
-                  className="flex-1 px-4 py-3 bg-[#DC2626] text-white rounded-xl hover:bg-[#B91C1C] transition-colors text-sm"
-                >
-                  Eliminar
-                </button>
+                <Tooltip content="Cancelar eliminación del cliente">
+                  <button
+                    onClick={() => setDeleteId(null)}
+                    className="flex-1 px-4 py-3 border border-[#E2E8F0] text-[#334155] rounded-xl hover:bg-[#F8FAFC] transition-colors text-sm"
+                  >
+                    Cancelar
+                  </button>
+                </Tooltip>
+                <Tooltip content="Confirmar eliminación definitiva">
+                  <button
+                    onClick={handleDelete}
+                    className="flex-1 px-4 py-3 bg-[#DC2626] text-white rounded-xl hover:bg-[#B91C1C] transition-colors text-sm"
+                  >
+                    Eliminar
+                  </button>
+                </Tooltip>
               </div>
             </motion.div>
           </div>
@@ -532,16 +561,22 @@ export function Cartera() {
                       </div>
                     </div>
                     <div>
-                      <div className="text-[#94A3B8] text-xs mb-1">Teléfono</div>
+                      <div className="text-[#94A3B8] text-xs mb-1">
+                        Teléfono
+                      </div>
                       <div className="text-[#0F172A] text-sm font-medium">
                         {clientes.find((c) => c.id === previewId)?.telefono}
                       </div>
                     </div>
                     <div>
-                      <div className="text-[#94A3B8] text-xs mb-1">Municipio</div>
+                      <div className="text-[#94A3B8] text-xs mb-1">
+                        Municipio
+                      </div>
                       <div className="text-[#0F172A] text-sm font-medium">
                         {getMunicipioNombre(
-                          clientes.find((c) => c.id === previewId)?.municipioId || ""
+                          clientes.find((c) => c.id === previewId)
+                            ?.municipioId || "",
+                          municipios,
                         )}
                       </div>
                     </div>
@@ -549,10 +584,22 @@ export function Cartera() {
                       <div className="text-[#94A3B8] text-xs mb-1">Estado</div>
                       <span
                         className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium ${estadoColor(
-                          calcularEstadoCliente(previewId)
+                          calcularEstadoCliente(
+                            clientes.find(
+                              (c) => c.id === previewId,
+                            ) as ClienteView,
+                            deudas,
+                          ),
                         )}`}
                       >
-                        {estadoLabel(calcularEstadoCliente(previewId))}
+                        {estadoLabel(
+                          calcularEstadoCliente(
+                            clientes.find(
+                              (c) => c.id === previewId,
+                            ) as ClienteView,
+                            deudas,
+                          ),
+                        )}
                       </span>
                     </div>
                     <div>
@@ -566,18 +613,22 @@ export function Cartera() {
                   </div>
 
                   <div className="flex gap-3">
-                    <button
-                      onClick={() => setPreviewId(null)}
-                      className="flex-1 px-4 py-3 border border-[#E2E8F0] text-[#334155] rounded-xl hover:bg-[#F8FAFC] transition-colors text-sm"
-                    >
-                      Cerrar
-                    </button>
-                    <Link
-                      to={`/cartera/${previewId}`}
-                      className="flex-1 px-4 py-3 bg-[#2563EB] text-white rounded-xl hover:bg-[#1E3A8A] transition-colors text-sm text-center"
-                    >
-                      Ver Detalle
-                    </Link>
+                    <Tooltip content="Cerrar vista rápida">
+                      <button
+                        onClick={() => setPreviewId(null)}
+                        className="flex-1 px-4 py-3 border border-[#E2E8F0] text-[#334155] rounded-xl hover:bg-[#F8FAFC] transition-colors text-sm"
+                      >
+                        Cerrar
+                      </button>
+                    </Tooltip>
+                    <Tooltip content="Abrir perfil completo del cliente">
+                      <Link
+                        to={`/cartera/${previewId}`}
+                        className="flex-1 px-4 py-3 bg-[#2563EB] text-white rounded-xl hover:bg-[#1E3A8A] transition-colors text-sm text-center"
+                      >
+                        Ver Detalle
+                      </Link>
+                    </Tooltip>
                   </div>
                 </>
               )}

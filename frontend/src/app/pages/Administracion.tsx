@@ -116,7 +116,9 @@ function AdminContent() {
         const updated = JSON.parse(stored);
         setUsuarios((prev) =>
           prev.map((u) =>
-            u.id === updated.auth_id ? { ...u, nombre: updated.nombre, email: updated.email } : u,
+            u.id === updated.auth_id
+              ? { ...u, nombre: updated.nombre, email: updated.email }
+              : u,
           ),
         );
       } catch (e) {
@@ -809,9 +811,5 @@ function AdminContent() {
 }
 
 export function Administracion() {
-  const { user } = useAuth();
-  if (!user || user.rol !== "ADMIN") {
-    return <Navigate to="/" replace />;
-  }
   return <AdminContent />;
 }

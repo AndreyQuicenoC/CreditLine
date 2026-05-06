@@ -1,31 +1,57 @@
-import { useState, useMemo } from "react";
-import { AlertCircle, Clock, CheckCircle2, Search, Filter, Link as LinkIcon } from "lucide-react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { motion } from "motion/react";
+import { AlertCircle, CheckCircle2, Clock, Filter, Search } from "lucide-react";
 import {
-  deudasData,
-  clientesData,
-  calcularTotalPagado,
   calcularEstadoDeuda,
-  Deuda,
-} from "../data/mockData";
+  type DeudaView,
+  useOperarioData,
+} from "../services/operario";
 import { Tooltip } from "../components/ui/Tooltip";
 
 type EstadoFilter = "todas" | "al-dia" | "riesgo" | "atrasado";
 type ModoFilter = "pendientes" | "pagadas" | "todas";
 
-function DeudaCard({ deuda, estado }: { deuda: Deuda; estado: string }) {
-  const cliente = clientesData.find((c) => c.id === deuda.clienteId);
-  const totalPagado = calcularTotalPagado(deuda);
-  const progreso = Math.min(100, (totalPagado / Math.max(1, deuda.monto)) * 100);
-  const saldo = Math.max(0, deuda.monto - totalPagado);
+function formatCompactMoney(value: number) {
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`;
+  if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}k`;
+  return `$${value.toLocaleString("es-CO")}`;
+}
 
-  const estadoStyles: Record<string, { badgeBg: string; badgeText: string; label: string; icon: React.ReactNode; barColor: string; border: string }> = {
+function DeudaCard({
+  deuda,
+  clienteNombre,
+  estado,
+}: {
+  deuda: DeudaView;
+  clienteNombre: string;
+  estado: string;
+}) {
+  const totalPagado = deuda.totalPagado ?? 0;
+  const saldo = deuda.saldoPendiente ?? Math.max(0, deuda.monto - totalPagado);
+  const capitalAmortizado = Math.max(
+    0,
+    deuda.monto - Math.max(0, deuda.capitalActual),
+  );
+  const progreso = Math.min(
+    100,
+    (capitalAmortizado / Math.max(1, deuda.monto)) * 100,
+  );
+
+  const estadoStyles: Record<
+    string,
+    {
+      badgeBg: string;
+      badgeText: string;
+      label: string;
+      barColor: string;
+      border: string;
+    }
+  > = {
     "al-dia": {
       badgeBg: "bg-[#F0FDF4]",
       badgeText: "text-[#16A34A]",
       label: "Al día",
-      icon: <CheckCircle2 className="w-3.5 h-3.5" />,
       barColor: "#16A34A",
       border: "border-[#BBF7D0]",
     },
@@ -33,7 +59,6 @@ function DeudaCard({ deuda, estado }: { deuda: Deuda; estado: string }) {
       badgeBg: "bg-[#FFFBEB]",
       badgeText: "text-[#F59E0B]",
       label: "En riesgo",
-      icon: <Clock className="w-3.5 h-3.5" />,
       barColor: "#F59E0B",
       border: "border-[#FDE68A]",
     },
@@ -41,7 +66,6 @@ function DeudaCard({ deuda, estado }: { deuda: Deuda; estado: string }) {
       badgeBg: "bg-[#FEF2F2]",
       badgeText: "text-[#DC2626]",
       label: "Atrasado",
-      icon: <AlertCircle className="w-3.5 h-3.5" />,
       barColor: "#DC2626",
       border: "border-[#FECACA]",
     },
@@ -49,7 +73,6 @@ function DeudaCard({ deuda, estado }: { deuda: Deuda; estado: string }) {
       badgeBg: "bg-[#F1F5F9]",
       badgeText: "text-[#64748B]",
       label: "Pagada",
-      icon: <CheckCircle2 className="w-3.5 h-3.5" />,
       barColor: "#64748B",
       border: "border-[#E2E8F0]",
     },
@@ -64,23 +87,33 @@ function DeudaCard({ deuda, estado }: { deuda: Deuda; estado: string }) {
     >
       <div className="flex items-start justify-between mb-3">
         <div>
-          <div className="text-[#0F172A] text-sm font-medium mb-0.5">{deuda.descripcion}</div>
+          <div className="text-[#0F172A] text-sm font-medium mb-0.5">
+            {deuda.descripcion}
+          </div>
           <div className="text-[#94A3B8] text-xs">
-            {cliente?.nombre ?? "—"} · {deuda.fechaInicio}
+            {clienteNombre} · {deuda.fechaInicio}
           </div>
         </div>
         <span
           className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${s.badgeBg} ${s.badgeText}`}
         >
-          {s.icon}
+          {estado === "atrasado" ? (
+            <AlertCircle className="w-3.5 h-3.5" />
+          ) : estado === "riesgo" ? (
+            <Clock className="w-3.5 h-3.5" />
+          ) : (
+            <CheckCircle2 className="w-3.5 h-3.5" />
+          )}
           {s.label}
         </span>
       </div>
 
       <div className="mb-3">
         <div className="flex items-center justify-between text-xs mb-1">
-          <span className="text-[#64748B]">Progreso</span>
-          <span className="text-[#0F172A] font-medium">{progreso.toFixed(1)}%</span>
+          <span className="text-[#64748B]">Progreso de capital</span>
+          <span className="text-[#0F172A] font-medium">
+            {progreso.toFixed(1)}%
+          </span>
         </div>
         <div className="w-full bg-[#E2E8F0] rounded-full h-2">
           <div
@@ -93,35 +126,44 @@ function DeudaCard({ deuda, estado }: { deuda: Deuda; estado: string }) {
       <div className="grid grid-cols-3 gap-3 pt-3 border-t border-[#F1F5F9]">
         <div>
           <div className="text-[#94A3B8] text-xs mb-0.5">Monto</div>
-          <div className="text-[#0F172A] text-xs font-medium">${(deuda.monto / 1000).toFixed(0)}k</div>
+          <div className="text-[#0F172A] text-xs font-medium">
+            {formatCompactMoney(deuda.monto)}
+          </div>
         </div>
         <div>
           <div className="text-[#94A3B8] text-xs mb-0.5">Pagado</div>
-          <div className="text-[#16A34A] text-xs font-medium">${(totalPagado / 1000).toFixed(0)}k</div>
+          <div className="text-[#16A34A] text-xs font-medium">
+            {formatCompactMoney(totalPagado)}
+          </div>
         </div>
         <div>
           <div className="text-[#94A3B8] text-xs mb-0.5">Saldo</div>
-          <div className="text-[#DC2626] text-xs font-medium">${(saldo / 1000).toFixed(0)}k</div>
+          <div className="text-[#DC2626] text-xs font-medium">
+            {formatCompactMoney(saldo)}
+          </div>
         </div>
       </div>
 
       {deuda.fechaVencimiento && (
-        <div className="mt-3 pt-2 border-t border-[#F1F5F9] text-xs text-[#94A3B8]">Vence: {deuda.fechaVencimiento}</div>
+        <div className="mt-3 pt-2 border-t border-[#F1F5F9] text-xs text-[#94A3B8]">
+          Vence: {deuda.fechaVencimiento}
+        </div>
       )}
     </Link>
   );
 }
 
 export function Deudas() {
+  const { deudas, clientes, loading } = useOperarioData();
   const [search, setSearch] = useState("");
   const [estadoFilter, setEstadoFilter] = useState<EstadoFilter>("todas");
   const [modoFilter, setModoFilter] = useState<ModoFilter>("pendientes");
 
-  const deudas = useMemo(() => {
-    return deudasData.filter((d) => {
-      const cliente = clientesData.find((c) => c.id === d.clienteId);
+  const deudasFiltradas = useMemo(() => {
+    return deudas.filter((d) => {
+      const cliente = clientes.find((c) => c.id === d.clienteId);
       const nombreMatch =
-        cliente?.nombre.toLowerCase().includes(search.toLowerCase()) ||
+        (cliente?.nombre ?? "").toLowerCase().includes(search.toLowerCase()) ||
         d.descripcion.toLowerCase().includes(search.toLowerCase());
 
       if (!nombreMatch) return false;
@@ -136,17 +178,18 @@ export function Deudas() {
 
       return true;
     });
-  }, [search, estadoFilter, modoFilter]);
+  }, [clientes, deudas, estadoFilter, modoFilter, search]);
 
   const counts = useMemo(() => {
-    const active = deudasData.filter((d) => d.estado === "activa");
+    const active = deudas.filter((d) => d.estado === "activa");
     return {
-      atrasado: active.filter((d) => calcularEstadoDeuda(d) === "atrasado").length,
+      atrasado: active.filter((d) => calcularEstadoDeuda(d) === "atrasado")
+        .length,
       riesgo: active.filter((d) => calcularEstadoDeuda(d) === "riesgo").length,
       alDia: active.filter((d) => calcularEstadoDeuda(d) === "al-dia").length,
-      pagadas: deudasData.filter((d) => d.estado === "pagada").length,
+      pagadas: deudas.filter((d) => d.estado === "pagada").length,
     };
-  }, []);
+  }, [deudas]);
 
   const modoOptions: { key: ModoFilter; label: string }[] = [
     { key: "pendientes", label: "Pendientes" },
@@ -154,55 +197,77 @@ export function Deudas() {
     { key: "todas", label: "Todas" },
   ];
 
-  const estadoOptions: { key: EstadoFilter; label: string; color: string }[] = [
-    { key: "todas", label: "Todos los estados", color: "#64748B" },
-    { key: "atrasado", label: `Atrasadas (${counts.atrasado})`, color: "#DC2626" },
-    { key: "riesgo", label: `En riesgo (${counts.riesgo})`, color: "#F59E0B" },
-    { key: "al-dia", label: `Al día (${counts.alDia})`, color: "#16A34A" },
+  const estadoOptions: { key: EstadoFilter; label: string }[] = [
+    { key: "todas", label: "Todos los estados" },
+    { key: "atrasado", label: `Atrasadas (${counts.atrasado})` },
+    { key: "riesgo", label: `En riesgo (${counts.riesgo})` },
+    { key: "al-dia", label: `Al día (${counts.alDia})` },
   ];
+
+  if (loading) {
+    return (
+      <div className="max-w-[1400px] mx-auto px-4 lg:px-6 py-8 text-center">
+        <p className="text-[#64748B]">Cargando deudas...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-[1400px] mx-auto px-4 lg:px-6 py-8">
       <div className="mb-8">
         <h1 className="text-[#0F172A] mb-1">Deudas</h1>
-        <p className="text-[#64748B]">Seguimiento de todas las deudas registradas</p>
+        <p className="text-[#64748B]">
+          Seguimiento de todas las deudas registradas
+        </p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-[#FEF2F2] border border-[#FECACA] rounded-xl p-4">
           <div className="flex items-center gap-2 mb-1">
-            <AlertCircle className="w-4 h-4 text-[#DC2626]" aria-hidden="true" />
-            <span className="text-[#DC2626] text-sm font-medium">Atrasadas</span>
+            <AlertCircle className="w-4 h-4 text-[#DC2626]" />
+            <span className="text-[#DC2626] text-sm font-medium">
+              Atrasadas
+            </span>
           </div>
-          <div className="text-[#DC2626] text-2xl font-semibold">{counts.atrasado}</div>
+          <div className="text-[#DC2626] text-2xl font-semibold">
+            {counts.atrasado}
+          </div>
         </div>
         <div className="bg-[#FFFBEB] border border-[#FDE68A] rounded-xl p-4">
           <div className="flex items-center gap-2 mb-1">
-            <Clock className="w-4 h-4 text-[#F59E0B]" aria-hidden="true" />
-            <span className="text-[#F59E0B] text-sm font-medium">En Riesgo</span>
+            <Clock className="w-4 h-4 text-[#F59E0B]" />
+            <span className="text-[#F59E0B] text-sm font-medium">
+              En Riesgo
+            </span>
           </div>
-          <div className="text-[#F59E0B] text-2xl font-semibold">{counts.riesgo}</div>
+          <div className="text-[#F59E0B] text-2xl font-semibold">
+            {counts.riesgo}
+          </div>
         </div>
         <div className="bg-[#F0FDF4] border border-[#BBF7D0] rounded-xl p-4">
           <div className="flex items-center gap-2 mb-1">
-            <CheckCircle2 className="w-4 h-4 text-[#16A34A]" aria-hidden="true" />
+            <CheckCircle2 className="w-4 h-4 text-[#16A34A]" />
             <span className="text-[#16A34A] text-sm font-medium">Al Día</span>
           </div>
-          <div className="text-[#16A34A] text-2xl font-semibold">{counts.alDia}</div>
+          <div className="text-[#16A34A] text-2xl font-semibold">
+            {counts.alDia}
+          </div>
         </div>
         <div className="bg-[#F1F5F9] border border-[#E2E8F0] rounded-xl p-4">
           <div className="flex items-center gap-2 mb-1">
-            <CheckCircle2 className="w-4 h-4 text-[#64748B]" aria-hidden="true" />
+            <CheckCircle2 className="w-4 h-4 text-[#64748B]" />
             <span className="text-[#64748B] text-sm font-medium">Pagadas</span>
           </div>
-          <div className="text-[#64748B] text-2xl font-semibold">{counts.pagadas}</div>
+          <div className="text-[#64748B] text-2xl font-semibold">
+            {counts.pagadas}
+          </div>
         </div>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-[#E2E8F0] p-5 mb-6">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#64748B]" aria-hidden="true" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#64748B]" />
             <input
               type="search"
               value={search}
@@ -212,12 +277,14 @@ export function Deudas() {
             />
           </div>
 
-          <Tooltip content="Filtrar por estado de la deuda">
+          <Tooltip content="Filtrar deudas por estado actual">
             <div className="relative">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#64748B]" aria-hidden="true" />
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#64748B]" />
               <select
                 value={estadoFilter}
-                onChange={(e) => setEstadoFilter(e.target.value as EstadoFilter)}
+                onChange={(e) =>
+                  setEstadoFilter(e.target.value as EstadoFilter)
+                }
                 className="pl-10 pr-8 py-2.5 border border-[#E2E8F0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] appearance-none bg-white cursor-pointer text-sm min-w-[180px]"
               >
                 {estadoOptions.map((o) => (
@@ -232,41 +299,78 @@ export function Deudas() {
 
         <div className="flex gap-1 mt-4 border-t border-[#F1F5F9] pt-4">
           {modoOptions.map((m) => (
-            <button
+            <Tooltip
               key={m.key}
-              onClick={() => setModoFilter(m.key)}
-              className={`px-4 py-2 rounded-lg text-sm transition-colors ${
-                modoFilter === m.key ? "bg-[#1E3A8A] text-white" : "text-[#64748B] hover:bg-[#F1F5F9]"
-              }`}
+              content={`Ver deudas ${m.label.toLowerCase()}`}
             >
-              {m.label}
-            </button>
+              <button
+                onClick={() => setModoFilter(m.key)}
+                className={`px-4 py-2 rounded-lg text-sm transition-colors ${modoFilter === m.key ? "bg-[#1E3A8A] text-white" : "text-[#64748B] hover:bg-[#F1F5F9]"}`}
+              >
+                {m.label}
+              </button>
+            </Tooltip>
           ))}
         </div>
       </div>
 
-      {deudas.length === 0 ? (
+      {deudasFiltradas.length === 0 ? (
         <div className="bg-white rounded-2xl shadow-sm border border-[#E2E8F0] py-16 text-center">
-          <AlertCircle className="w-10 h-10 mx-auto text-[#CBD5E1] mb-3" aria-hidden="true" />
-          <p className="text-[#64748B]">No se encontraron deudas con los filtros aplicados.</p>
+          <AlertCircle className="w-10 h-10 mx-auto text-[#CBD5E1] mb-3" />
+          <p className="text-[#64748B]">
+            No se encontraron deudas con los filtros aplicados.
+          </p>
           {search && (
-            <button onClick={() => setSearch("")} className="text-[#2563EB] text-sm mt-2 hover:underline">Limpiar búsqueda</button>
+            <Tooltip content="Limpiar texto de búsqueda actual">
+              <button
+                onClick={() => setSearch("")}
+                className="text-[#2563EB] text-sm mt-2 hover:underline"
+              >
+                Limpiar búsqueda
+              </button>
+            </Tooltip>
           )}
         </div>
       ) : (
         <div>
           <div className="flex items-center justify-between mb-4">
-            <p className="text-[#64748B] text-sm">{deudas.length} deuda{deudas.length !== 1 ? "s" : ""} encontrada{deudas.length !== 1 ? "s" : ""}</p>
+            <p className="text-[#64748B] text-sm">
+              {deudasFiltradas.length} deuda
+              {deudasFiltradas.length !== 1 ? "s" : ""} encontrada
+              {deudasFiltradas.length !== 1 ? "s" : ""}
+            </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {deudas.map((deuda) => (
-              <motion.div key={deuda.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-                <DeudaCard deuda={deuda} estado={deuda.estado === "pagada" ? "pagada" : calcularEstadoDeuda(deuda)} />
-              </motion.div>
-            ))}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            {deudasFiltradas.map((deuda) => {
+              const clienteNombre =
+                clientes.find((c) => c.id === deuda.clienteId)?.nombre ?? "—";
+              const estado =
+                deuda.estado === "activa"
+                  ? calcularEstadoDeuda(deuda)
+                  : deuda.estado;
+              return (
+                <DeudaCard
+                  key={deuda.id}
+                  deuda={deuda}
+                  clienteNombre={clienteNombre}
+                  estado={estado}
+                />
+              );
+            })}
           </div>
         </div>
       )}
+
+      <div className="mt-8">
+        <Tooltip content="Volver a la cartera de clientes">
+          <Link
+            to="/cartera"
+            className="text-[#2563EB] text-sm hover:underline"
+          >
+            Volver a Cartera
+          </Link>
+        </Tooltip>
+      </div>
     </div>
   );
 }

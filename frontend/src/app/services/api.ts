@@ -1,6 +1,6 @@
 const API_URL =
   (import.meta.env.VITE_API_URL as string) || "http://localhost:8000";
-const API_TIMEOUT = Number(import.meta.env.VITE_API_TIMEOUT as string) || 10000;
+const API_TIMEOUT = Number(import.meta.env.VITE_API_TIMEOUT as string) || 60000;
 
 if (!API_URL) {
   throw new Error("Missing VITE_API_URL in environment");
@@ -40,6 +40,7 @@ class APIClient {
     endpoint: string,
     options: RequestInit = {},
   ): Promise<{ data?: T; error?: string }> {
+    const startedAt = Date.now();
     try {
       const token = getToken();
 
@@ -47,7 +48,9 @@ class APIClient {
       const isAuthEndpoint = endpoint.includes("/login/");
 
       if (!token && !isAuthEndpoint) {
-        console.warn(`[API] Missing auth token for ${options.method} ${endpoint}`);
+        console.warn(
+          `[API] Missing auth token for ${options.method} ${endpoint}`,
+        );
         return { error: "Missing auth token" };
       }
 
@@ -58,7 +61,10 @@ class APIClient {
       };
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+      const timeoutId = setTimeout(() => {
+        console.debug(`[API] aborting ${options.method} ${endpoint} after ${this.timeout}ms`);
+        controller.abort();
+      }, this.timeout);
 
       console.log(`[API] ${options.method} ${endpoint}`, { hasToken: !!token });
 
@@ -69,9 +75,14 @@ class APIClient {
       });
 
       clearTimeout(timeoutId);
+      const endedAt = Date.now();
+      console.debug(`[API] ${options.method} ${endpoint} fetched in ${endedAt - startedAt}ms`);
 
       const data = await response.json().catch(() => ({}));
-      
+
+      const parsedAt = Date.now();
+      console.debug(`[API] ${options.method} ${endpoint} parsed JSON in ${parsedAt - endedAt}ms (total ${parsedAt - startedAt}ms)`);
+
       if (response.status === 401) {
         console.error(`[API] 401 Unauthorized - clearing auth`);
         localStorage.removeItem("creditline_token");
@@ -84,24 +95,37 @@ class APIClient {
       if (!response.ok) {
         // Handle different error formats
         let errorMsg = `HTTP ${response.status}`;
-        
+
         // Try to extract error message from various formats
         if (data.error) {
-          errorMsg = data.error;
+          errorMsg =
+            typeof data.error === "string"
+              ? data.error
+              : JSON.stringify(data.error);
         } else if (data.message) {
-          errorMsg = data.message;
-        } else if (typeof data === 'object' && Object.keys(data).length > 0) {
+          errorMsg =
+            typeof data.message === "string"
+              ? data.message
+              : JSON.stringify(data.message);
+        } else if (typeof data === "object" && Object.keys(data).length > 0) {
           // Validation errors from backend (e.g., {nombre: 'required', email: 'invalid'})
           const errors = Object.entries(data)
-            .filter(([key]) => key !== 'status' && key !== 'statusCode')
-            .map(([key, value]) => `${key}: ${value}`)
-            .join('; ');
+            .filter(([key]) => key !== "status" && key !== "statusCode")
+            .map(
+              ([key, value]) =>
+                `${key}: ${typeof value === "string" ? value : JSON.stringify(value)}`,
+            )
+            .join("; ");
           if (errors) {
             errorMsg = errors;
           }
         }
-        
-        console.error(`[API] ${options.method} ${endpoint} failed:`, errorMsg, data);
+
+        console.error(
+          `[API] ${options.method} ${endpoint} failed:`,
+          errorMsg,
+          data,
+        );
         return {
           error: errorMsg,
         };
@@ -111,7 +135,8 @@ class APIClient {
       return { data };
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
-        console.error(`[API] Request timeout for ${options.method} ${endpoint}`);
+        const now = Date.now();
+        console.error(`[API] Request timeout for ${options.method} ${endpoint} after ${now - startedAt}ms`);
         return { error: "Request timeout" };
       }
 
